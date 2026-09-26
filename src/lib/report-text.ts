@@ -1,0 +1,139 @@
+import Anthropic from "@anthropic-ai/sdk";
+import type { DailyNote } from "./repo";
+
+export type ReportInput = {
+  clientName: string;
+  careLevel: string;
+  ym: string; // YYYY-MM
+  keywords: string; // 職員が入力した箇条書き・単語
+  notes: DailyNote[];
+};
+
+export type ReportResult = {
+  text: string;
+  engine: "claude" | "template";
+  warning?: string;
+};
+
+const MODEL = "claude-opus-5";
+
+const SYSTEM_PROMPT = `あなたは機能訓練型デイサービスの生活相談員・機能訓練指導員です。
+ご家族やケアマネジャーに提出する「月次報告（今月のご様子）」の文章を作成します。
+
+書き方のルール:
+- 敬体（です・ます調）で、温かみがあり、かつ事実に基づいた簡潔な文章にする。
+- 与えられた情報（日々の記録・キーワード）に書かれていない出来事や数値を創作しない。情報が少ない場合は、その範囲で無理なくまとめる。
+- 利用者本人の呼称は「〇〇様」とする。
+- 構成の目安: (1) 利用状況・全体の様子 (2) 機能訓練・整体などの取り組みと変化 (3) 生活面・コミュニケーションの様子 (4) 来月に向けて。
+- 全体で 300〜500 字程度。見出しや箇条書きは使わず、段落のみで書く。
+- 医学的な診断や断定的な評価は避け、観察された様子として書く。
+- 出力は本文のみ。前置きや説明文は付けない。`;
+
+export function buildUserPrompt(input: ReportInput): string {
+  const [y, m] = input.ym.split("-").map(Number);
+  const present = input.notes.filter((n) => n.status === "present");
+  const absent = input.notes.filter((n) => n.status === "absent");
+  const lines: string[] = [];
+  lines.push(`【対象】${input.clientName} 様（${input.careLevel || "介護度未設定"}）`);
+  lines.push(`【対象月】${y}年${m}月`);
+  lines.push(`【利用日数】出席 ${present.length} 日 / 欠席 ${absent.length} 日`);
+  const seitaiDays = present.filter((n) => n.seitai_staff_name).length;
+  if (seitaiDays > 0) lines.push(`【整体実施】${seitaiDays} 回`);
+  lines.push("");
+  lines.push("【職員メモ（箇条書き・単語）】");
+  lines.push(input.keywords.trim() || "（なし）");
+  lines.push("");
+  lines.push("【日々の記録】");
+  const noted = input.notes.filter((n) => n.note.trim());
+  if (noted.length === 0) lines.push("（記録なし）");
+  for (const n of noted) {
+    const d = new Date(`${n.date}T00:00:00`);
+    lines.push(`- ${d.getMonth() + 1}/${d.getDate()}: ${n.note.trim()}`);
+  }
+  lines.push("");
+  lines.push("上記をもとに月次報告の本文を作成してください。");
+  return lines.join("\n");
+}
+
+/**
+ * Claude で月次報告文を生成する。API キーが無い場合や失敗時はテンプレート生成にフォールバックする。
+ */
+export async function generateMonthlyReportText(input: ReportInput): Promise<ReportResult> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return {
+      text: templateReport(input),
+      engine: "template",
+      warning: "ANTHROPIC_API_KEY が未設定のため、簡易テンプレートで生成しました。",
+    };
+  }
+  const client = new Anthropic();
+  try {
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: buildUserPrompt(input) }],
+    });
+    if (response.stop_reason === "refusal") {
+      return {
+        text: templateReport(input),
+        engine: "template",
+        warning: "AI が生成を拒否したため、簡易テンプレートで生成しました。",
+      };
+    }
+    const text = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+    if (!text) throw new Error("empty response");
+    return { text, engine: "claude" };
+  } catch (error) {
+    let reason = "不明なエラー";
+    if (error instanceof Anthropic.AuthenticationError) reason = "API キーが無効です";
+    else if (error instanceof Anthropic.RateLimitError) reason = "API の利用制限に達しました。時間をおいて再試行してください";
+    else if (error instanceof Anthropic.APIError) reason = `API エラー (${error.status}): ${error.message}`;
+    else if (error instanceof Error) reason = error.message;
+    return {
+      text: templateReport(input),
+      engine: "template",
+      warning: `AI 生成に失敗したため簡易テンプレートで生成しました（${reason}）。`,
+    };
+  }
+}
+
+/** API を使わない簡易テンプレート生成（オフライン時の保険） */
+export function templateReport(input: ReportInput): string {
+  const [y, m] = input.ym.split("-").map(Number);
+  const present = input.notes.filter((n) => n.status === "present").length;
+  const absent = input.notes.filter((n) => n.status === "absent").length;
+  const seitai = input.notes.filter((n) => n.status === "present" && n.seitai_staff_name).length;
+  const keywords = input.keywords
+    .split(/\r?\n|、|,|・/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const noted = input.notes.filter((n) => n.note.trim());
+
+  const paras: string[] = [];
+  let p1 = `${y}年${m}月の${input.clientName}様のご様子をご報告いたします。今月は${present}日ご利用いただきました`;
+  p1 += absent > 0 ? `（お休み ${absent} 日）。` : "。";
+  paras.push(p1);
+
+  if (seitai > 0 || keywords.length > 0) {
+    let p2 = "";
+    if (seitai > 0) p2 += `機能訓練では整体を${seitai}回実施しました。`;
+    if (keywords.length > 0) p2 += `職員からは「${keywords.join("」「")}」といった様子が報告されています。`;
+    paras.push(p2);
+  }
+  if (noted.length > 0) {
+    const items = noted.slice(0, 5).map((n) => {
+      const d = new Date(`${n.date}T00:00:00`);
+      return `${d.getMonth() + 1}月${d.getDate()}日は${n.note.trim().replace(/。$/, "")}`;
+    });
+    paras.push(`日々の記録では、${items.join("、")}、といった場面が見られました。`);
+  }
+  paras.push("来月も安全に配慮しながら、ご本人のペースに合わせて機能訓練と交流の機会を大切にしてまいります。");
+  return paras.join("\n");
+}
