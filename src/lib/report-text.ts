@@ -23,9 +23,8 @@ const SYSTEM_PROMPT = `あなたは機能訓練型デイサービスの生活相
 書き方のルール:
 - 敬体（です・ます調）で、温かみがあり、かつ事実に基づいた簡潔な文章にする。
 - 与えられた情報（日々の記録・キーワード）に書かれていない出来事や数値を創作しない。情報が少ない場合は、その範囲で無理なくまとめる。
-- 利用者本人の呼称は「〇〇様」とする。
-- 構成の目安: (1) 利用状況・全体の様子 (2) 機能訓練・整体などの取り組みと変化 (3) 生活面・コミュニケーションの様子 (4) 来月に向けて。
-- 全体で 300〜500 字程度。見出しや箇条書きは使わず、段落のみで書く。
+- ケアマネジャー向けの月次報告書に、利用者ごとに数行ずつ並べて掲載する。身体機能の変化、機能訓練・整体での様子、ご本人の発言や生活面の様子を中心に書く。
+- 全体で 100〜200 字程度。見出しや箇条書きは使わず、1 段落で書く。冒頭に利用者名は書かない（書式側で「〇〇様」と付く）。
 - 医学的な診断や断定的な評価は避け、観察された様子として書く。
 - 出力は本文のみ。前置きや説明文は付けない。`;
 
@@ -37,8 +36,8 @@ export function buildUserPrompt(input: ReportInput): string {
   lines.push(`【対象】${input.clientName} 様（${input.careLevel || "介護度未設定"}）`);
   lines.push(`【対象月】${y}年${m}月`);
   lines.push(`【利用日数】出席 ${present.length} 日 / 欠席 ${absent.length} 日`);
-  const seitaiDays = present.filter((n) => n.seitai_staff_name).length;
-  if (seitaiDays > 0) lines.push(`【整体実施】${seitaiDays} 回`);
+  const trainingDays = present.filter((n) => n.trainer).length;
+  if (trainingDays > 0) lines.push(`【個別機能訓練・整体】${trainingDays} 回`);
   lines.push("");
   lines.push("【職員メモ（箇条書き・単語）】");
   lines.push(input.keywords.trim() || "（なし）");
@@ -106,10 +105,10 @@ export async function generateMonthlyReportText(input: ReportInput): Promise<Rep
 
 /** API を使わない簡易テンプレート生成（オフライン時の保険） */
 export function templateReport(input: ReportInput): string {
-  const [y, m] = input.ym.split("-").map(Number);
+  const m = Number(input.ym.split("-")[1]);
   const present = input.notes.filter((n) => n.status === "present").length;
   const absent = input.notes.filter((n) => n.status === "absent").length;
-  const seitai = input.notes.filter((n) => n.status === "present" && n.seitai_staff_name).length;
+  const seitai = input.notes.filter((n) => n.status === "present" && n.trainer).length;
   const keywords = input.keywords
     .split(/\r?\n|、|,|・/)
     .map((s) => s.trim())
@@ -117,14 +116,13 @@ export function templateReport(input: ReportInput): string {
   const noted = input.notes.filter((n) => n.note.trim());
 
   const paras: string[] = [];
-  let p1 = `${y}年${m}月の${input.clientName}様のご様子をご報告いたします。今月は${present}日ご利用いただきました`;
-  p1 += absent > 0 ? `（お休み ${absent} 日）。` : "。";
-  paras.push(p1);
+  if (present > 0) paras.push(`${m}月は${present}回ご利用いただきました${absent > 0 ? `（お休み ${absent} 回）` : ""}。`);
+  else if (absent > 0) paras.push(`${m}月はお休みが続きました（${absent} 回）。`);
 
   if (seitai > 0 || keywords.length > 0) {
     let p2 = "";
-    if (seitai > 0) p2 += `機能訓練では整体を${seitai}回実施しました。`;
-    if (keywords.length > 0) p2 += `職員からは「${keywords.join("」「")}」といった様子が報告されています。`;
+    if (seitai > 0) p2 += `個別機能訓練・整体を${seitai}回実施しました。`;
+    if (keywords.length > 0) p2 += `${keywords.join("。").replace(/。+$/, "")}。`;
     paras.push(p2);
   }
   if (noted.length > 0) {
@@ -132,8 +130,7 @@ export function templateReport(input: ReportInput): string {
       const d = new Date(`${n.date}T00:00:00`);
       return `${d.getMonth() + 1}月${d.getDate()}日は${n.note.trim().replace(/。$/, "")}`;
     });
-    paras.push(`日々の記録では、${items.join("、")}、といった場面が見られました。`);
+    paras.push(`${items.join("、")}、といったご様子でした。`);
   }
-  paras.push("来月も安全に配慮しながら、ご本人のペースに合わせて機能訓練と交流の機会を大切にしてまいります。");
-  return paras.join("\n");
+  return paras.join("");
 }

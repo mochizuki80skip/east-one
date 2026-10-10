@@ -3,38 +3,33 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "East One 現場サポート",
-  description: "機能訓練型デイサービス向け 日々のスケジュール・月次報告 作成支援",
+  title: "East-one 業務サポート",
+  description: "機能訓練型デイサービス向け シフト・日々のスケジュール・月次報告 作成支援",
 };
 
-const NAV = [
-  { href: "/", label: "ホーム" },
-  { href: "/schedule", label: "日々のスケジュール" },
-  { href: "/monthly", label: "月次報告" },
-  { href: "/clients", label: "利用者" },
-  { href: "/staff", label: "スタッフ" },
-  { href: "/courses", label: "送迎コース" },
-];
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <header className="no-print bg-slate-800 text-white">
-          <div className="mx-auto max-w-6xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Link href="/" className="font-bold text-lg">
-              East One 現場サポート
+          <div className="mx-auto max-w-7xl px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1">
+            <Link href="/" className="font-bold">
+              East-one 業務サポート
             </Link>
-            <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {NAV.map((n) => (
-                <Link key={n.href} href={n.href} className="hover:underline">
-                  {n.label}
-                </Link>
-              ))}
+            <nav className="flex flex-wrap gap-x-4 text-sm">
+              <Link href="/" className="hover:underline">
+                店舗一覧
+              </Link>
+              <Link href="/staff" className="hover:underline">
+                スタッフ
+              </Link>
+              <Link href="/caremanagers" className="hover:underline">
+                ケアマネ
+              </Link>
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 flex-1">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-5 flex-1 print:max-w-none print:p-0">{children}</main>
       </body>
     </html>
   );

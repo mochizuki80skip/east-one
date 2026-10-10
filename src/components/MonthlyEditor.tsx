@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { DailyNote } from "@/lib/repo";
 import { generateReportAction, saveReportAction } from "@/app/actions/monthly";
-import { btnPrimary, btnSecondary, input, td, th } from "./ui";
+import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
 
 type Props = {
   clientId: number;
@@ -26,6 +26,7 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
 
   const generate = () =>
     start(async () => {
+      if (body && !window.confirm("今の本文を置き換えます。よろしいですか？")) return;
       setMsg(hasApiKey ? "AI が文章を作成しています…" : "簡易テンプレートで作成しています…");
       const r = await generateReportAction(clientId, ym, keywords);
       setBody(r.text);
@@ -40,20 +41,15 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
       setMsg(`保存しました（${r.savedAt}）`);
     });
 
-  const copy = async () => {
-    await navigator.clipboard.writeText(body);
-    setMsg("本文をコピーしました。");
-  };
-
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="space-y-4">
         <div className="rounded border bg-white p-4">
-          <h2 className="font-bold mb-2">
-            日々の記録 <span className="text-sm font-normal text-slate-500">出席 {present.length} 日 / お休み {absent.length} 日</span>
+          <h2 className="mb-2 font-bold">
+            日々の記録 <span className="text-sm font-normal text-slate-500">利用 {present.length} 回 / お休み {absent.length} 回</span>
           </h2>
           {notes.length === 0 ? (
-            <p className="text-sm text-slate-500">この月のスケジュールがまだ保存されていません。日々のスケジュール画面で「今日の様子メモ」を入力すると、ここに集まります。</p>
+            <p className="text-sm text-slate-500">この月の記録がまだありません。日々のスケジュールで出欠と「今日の様子」を入れて保存すると、ここに集まります。</p>
           ) : (
             <div className="max-h-80 overflow-y-auto">
               <table className="w-full border">
@@ -61,16 +57,18 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
                   <tr>
                     <th className={th}>日付</th>
                     <th className={th}>出欠</th>
-                    <th className={th}>整体</th>
-                    <th className={th}>メモ</th>
+                    <th className={th}>担当</th>
+                    <th className={th}>様子</th>
                   </tr>
                 </thead>
                 <tbody>
                   {notes.map((n) => (
-                    <tr key={n.date} className={n.status === "absent" ? "text-slate-400" : ""}>
-                      <td className={`${td} whitespace-nowrap`}>{n.date.slice(5).replace("-", "/")}</td>
-                      <td className={td}>{n.status === "present" ? "出席" : "休"}</td>
-                      <td className={td}>{n.seitai_staff_name ?? ""}</td>
+                    <tr key={`${n.date}${n.session}`} className={n.status === "absent" ? "text-slate-400" : ""}>
+                      <td className={`${td} whitespace-nowrap`}>
+                        {n.date.slice(5).replace("-", "/")} {n.session === "am" ? "前" : "後"}
+                      </td>
+                      <td className={td}>{n.status === "present" ? "出席" : `休（${n.reason}）`}</td>
+                      <td className={td}>{n.trainer ?? ""}</td>
                       <td className={td}>{n.note}</td>
                     </tr>
                   ))}
@@ -81,49 +79,55 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
         </div>
 
         <div className="rounded border bg-white p-4">
-          <h2 className="font-bold mb-2">キーワード・箇条書き</h2>
-          <p className="text-xs text-slate-500 mb-2">単語や短い箇条書きで OK。例: 「歩行が安定」「レクに積極的」「膝の痛みが減った」「来月は立ち上がり訓練を増やす」</p>
+          <h2 className="mb-2 font-bold">キーワード・箇条書き</h2>
+          <p className="mb-2 text-xs text-slate-500">
+            単語や短い箇条書きでOKです。例:「身体機能に大きな変化なし」「ペダル漕ぎ24分」「帰宅時も疲れなく歩けた」「半日なら横にならなくても大丈夫と本人」
+          </p>
           <textarea
             value={keywords}
             onChange={(e) => {
               setKeywords(e.target.value);
               setDirty(true);
             }}
-            rows={8}
+            rows={7}
             className={`${input} w-full`}
-            placeholder={"歩行安定\n笑顔が増えた\n体操に意欲的"}
+            placeholder={"身体機能に大きな変化なし\nペダル漕ぎ24分\n帰宅時も疲れなく歩けた"}
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button onClick={generate} disabled={pending} className={btnPrimary}>
-              ✨ 文章を生成する
+              ✨ 文章を作成する
             </button>
-            {!hasApiKey && <span className="text-xs text-amber-700">ANTHROPIC_API_KEY 未設定のため簡易テンプレート生成になります</span>}
+            {!hasApiKey && <span className="text-xs text-amber-700">AI のキーが未設定のため、簡易テンプレートで作成します</span>}
           </div>
         </div>
       </section>
 
       <section className="rounded border bg-white p-4">
-        <h2 className="font-bold mb-2">月次報告 本文</h2>
+        <h2 className="mb-2 font-bold">報告文（ケアマネへの月次報告に載る文章）</h2>
         <textarea
           value={body}
           onChange={(e) => {
             setBody(e.target.value);
             setDirty(true);
           }}
-          rows={18}
+          rows={12}
           className={`${input} w-full leading-relaxed`}
-          placeholder="「文章を生成する」を押すか、直接入力してください。"
+          placeholder="「文章を作成する」を押すか、直接入力してください。"
         />
-        <div className="mt-1 text-right text-xs text-slate-500">{body.length} 文字</div>
+        <div className="mt-1 text-right text-xs text-slate-500">{body.length} 文字（目安 100〜200 字）</div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button onClick={save} disabled={pending || !dirty} className={`${btnPrimary} bg-emerald-600 hover:bg-emerald-700`}>
+          <button onClick={save} disabled={pending || !dirty} className={btnGreen}>
             💾 保存
           </button>
-          <button onClick={copy} disabled={!body} className={btnSecondary}>
-            📋 本文をコピー
-          </button>
-          <button onClick={() => window.print()} className={btnSecondary}>
-            🖨 印刷
+          <button
+            onClick={async () => {
+              await navigator.clipboard.writeText(body);
+              setMsg("本文をコピーしました。");
+            }}
+            disabled={!body}
+            className={btnSecondary}
+          >
+            📋 コピー
           </button>
           <span className="text-sm text-slate-600">
             {pending ? "処理中…" : msg}

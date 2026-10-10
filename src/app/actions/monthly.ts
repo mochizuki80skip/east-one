@@ -13,10 +13,11 @@ export async function generateReportAction(clientId: number, ym: string, keyword
   return generateMonthlyReportText({ clientName: client.name, careLevel: client.care_level, ym, keywords, notes });
 }
 
-export async function saveReportAction(clientId: number, ym: string, keywords: string, body: string): Promise<{ savedAt: string }> {
+export async function saveReportAction(clientId: number, ym: string, keywords: string, body: string) {
   if (!isValidYm(ym)) throw new Error("invalid month");
+  const client = getClient(clientId);
+  if (!client) throw new Error("client not found");
   saveMonthlyReport(clientId, ym, keywords, body);
-  revalidatePath(`/monthly/${clientId}/${ym}`);
-  revalidatePath("/monthly");
-  return { savedAt: new Date().toLocaleTimeString("ja-JP") };
+  revalidatePath(`/s/${client.store_id}/monthly/${ym}`, "layout");
+  return { savedAt: new Date().toLocaleTimeString("ja-JP", { timeZone: "Asia/Tokyo" }) };
 }

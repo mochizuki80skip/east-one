@@ -1,18 +1,42 @@
 import type { ReactNode } from "react";
 
-export function PageTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
+export function PageTitle({ children, right, sub }: { children: ReactNode; right?: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <h1 className="text-2xl font-bold">{children}</h1>
-      {right}
+    <div className="mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold">{children}</h1>
+        {right}
+      </div>
+      {sub && <p className="mt-1 text-sm text-slate-600">{sub}</p>}
     </div>
   );
 }
 
-export const btn = "rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50";
+export function Card({ title, children, right }: { title?: ReactNode; children: ReactNode; right?: ReactNode }) {
+  return (
+    <section className="rounded-lg border bg-white p-4 shadow-sm">
+      {(title || right) && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {title && <h2 className="font-bold">{title}</h2>}
+          {right}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+export function Notice({ children, tone = "amber" }: { children: ReactNode; tone?: "amber" | "red" | "blue" }) {
+  const c = { amber: "border-amber-300 bg-amber-50", red: "border-red-300 bg-red-50", blue: "border-blue-200 bg-blue-50" }[tone];
+  return <div className={`rounded border p-3 text-sm ${c}`}>{children}</div>;
+}
+
+export const btn = "inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50 whitespace-nowrap";
 export const btnPrimary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
+export const btnGreen = `${btn} bg-emerald-600 text-white hover:bg-emerald-700`;
 export const btnSecondary = `${btn} bg-white border border-slate-300 hover:bg-slate-50`;
 export const btnDanger = `${btn} text-red-700 hover:bg-red-50`;
 export const input = "rounded border border-slate-300 px-2 py-1 text-sm bg-white";
-export const th = "border px-2 py-1 text-left text-xs font-semibold bg-slate-100";
+export const label = "block text-xs font-semibold text-slate-600 mb-1";
+export const th = "border px-2 py-1 text-left text-xs font-semibold bg-slate-100 whitespace-nowrap";
 export const td = "border px-2 py-1 text-sm";
