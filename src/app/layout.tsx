@@ -7,6 +7,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "East-one 業務サポート",
   description: "機能訓練型デイサービス向け シフト・日々のスケジュール・月次報告 作成支援",
+  // 社内システムなので検索エンジンに載せない
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

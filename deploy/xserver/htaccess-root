@@ -1,4 +1,4 @@
-# East-one 業務サポート（Xサーバー公開フォルダ public_html 直下に置く .htaccess）
+# East-one 業務サポート（サブドメイン eastone-data の公開フォルダ直下に置く .htaccess）
 Options -Indexes
 DirectoryIndex index.html index.php
 ErrorDocument 404 /404.html
@@ -19,4 +19,5 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "same-origin"
+  Header always set X-Robots-Tag "noindex, nofollow"
 </IfModule>

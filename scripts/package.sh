@@ -29,5 +29,6 @@ cp server/data/.htaccess dist/public_html/api/vendor/.htaccess
 echo "▶ zip を作成中…"
 (cd dist/public_html && zip -qr ../east-one-xserver.zip .)
 du -sh dist/public_html dist/east-one-xserver.zip
-echo "✔ 完了: dist/public_html（または dist/east-one-xserver.zip）をアップロードしてください。"
+echo "✔ 完了: dist/public_html の中身（または dist/east-one-xserver.zip）を"
+echo "  /hachimaru-80skip.com/public_html/eastone-data/ にアップロードしてください。"
 echo "  初回のみ: api/config.sample.php を api/config.php にコピーして設定します。"
