@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import type { DailyNote } from "./repo";
+import { api } from "./api";
+import type { DailyNote } from "./data";
 
 export type ReportInput = {
   clientName: string;
@@ -15,19 +15,7 @@ export type ReportResult = {
   warning?: string;
 };
 
-const MODEL = "claude-opus-5";
-
-const SYSTEM_PROMPT = `あなたは機能訓練型デイサービスの生活相談員・機能訓練指導員です。
-ご家族やケアマネジャーに提出する「月次報告（今月のご様子）」の文章を作成します。
-
-書き方のルール:
-- 敬体（です・ます調）で、温かみがあり、かつ事実に基づいた簡潔な文章にする。
-- 与えられた情報（日々の記録・キーワード）に書かれていない出来事や数値を創作しない。情報が少ない場合は、その範囲で無理なくまとめる。
-- ケアマネジャー向けの月次報告書に、利用者ごとに数行ずつ並べて掲載する。身体機能の変化、機能訓練・整体での様子、ご本人の発言や生活面の様子を中心に書く。
-- 全体で 100〜200 字程度。見出しや箇条書きは使わず、1 段落で書く。冒頭に利用者名は書かない（書式側で「〇〇様」と付く）。
-- 医学的な診断や断定的な評価は避け、観察された様子として書く。
-- 出力は本文のみ。前置きや説明文は付けない。`;
-
+/** AI に渡す材料（文章の書き方のルールはサーバー側 report.php にある） */
 export function buildUserPrompt(input: ReportInput): string {
   const [y, m] = input.ym.split("-").map(Number);
   const present = input.notes.filter((n) => n.status === "present");
@@ -35,7 +23,7 @@ export function buildUserPrompt(input: ReportInput): string {
   const lines: string[] = [];
   lines.push(`【対象】${input.clientName} 様（${input.careLevel || "介護度未設定"}）`);
   lines.push(`【対象月】${y}年${m}月`);
-  lines.push(`【利用日数】出席 ${present.length} 日 / 欠席 ${absent.length} 日`);
+  lines.push(`【利用回数】出席 ${present.length} 回 / お休み ${absent.length} 回`);
   const trainingDays = present.filter((n) => n.trainer).length;
   if (trainingDays > 0) lines.push(`【個別機能訓練・整体】${trainingDays} 回`);
   lines.push("");
@@ -54,52 +42,14 @@ export function buildUserPrompt(input: ReportInput): string {
   return lines.join("\n");
 }
 
-/**
- * Claude で月次報告文を生成する。API キーが無い場合や失敗時はテンプレート生成にフォールバックする。
- */
+/** サーバー（Claude）で作成し、使えない場合は簡易テンプレートで作る */
 export async function generateMonthlyReportText(input: ReportInput): Promise<ReportResult> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return {
-      text: templateReport(input),
-      engine: "template",
-      warning: "ANTHROPIC_API_KEY が未設定のため、簡易テンプレートで生成しました。",
-    };
-  }
-  const client = new Anthropic();
   try {
-    const response = await client.beta.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: buildUserPrompt(input) }],
-    });
-    if (response.stop_reason === "refusal") {
-      return {
-        text: templateReport(input),
-        engine: "template",
-        warning: "AI が生成を拒否したため、簡易テンプレートで生成しました。",
-      };
-    }
-    const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("\n")
-      .trim();
-    if (!text) throw new Error("empty response");
-    return { text, engine: "claude" };
-  } catch (error) {
-    let reason = "不明なエラー";
-    if (error instanceof Anthropic.AuthenticationError) reason = "API キーが無効です";
-    else if (error instanceof Anthropic.RateLimitError) reason = "API の利用制限に達しました。時間をおいて再試行してください";
-    else if (error instanceof Anthropic.APIError) reason = `API エラー (${error.status}): ${error.message}`;
-    else if (error instanceof Error) reason = error.message;
-    return {
-      text: templateReport(input),
-      engine: "template",
-      warning: `AI 生成に失敗したため簡易テンプレートで生成しました（${reason}）。`,
-    };
+    const r = await api.generate(buildUserPrompt(input));
+    if (r.engine === "claude" && r.text) return { text: r.text, engine: "claude" };
+    return { text: templateReport(input), engine: "template", warning: r.warning };
+  } catch (e) {
+    return { text: templateReport(input), engine: "template", warning: `AI での作成に失敗したため簡易テンプレートで作成しました（${(e as Error).message}）。` };
   }
 }
 

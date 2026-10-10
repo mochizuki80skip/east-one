@@ -2,11 +2,19 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { REQUEST_CODES, SHIFT_CODES, shiftWeight, WEEKDAYS } from "@/lib/constants";
-import { checkShift, type ShiftRules } from "@/lib/shift-auto";
-import { autoShiftAction, saveShiftAction, type Cell } from "@/app/actions/shift";
+import { autoShift, checkShift, type ShiftRules } from "@/lib/shift-auto";
+import { saveShiftMonth, type Cell } from "@/lib/data";
 import { btnGreen, btnPrimary, btnSecondary } from "./ui";
 
-type StaffRow = { id: number; name: string; role: string; employment: string; days_per_week: number };
+type StaffRow = {
+  id: number;
+  name: string;
+  role: string;
+  employment: string;
+  days_per_week: number;
+  available_weekdays: number[];
+  sort_order: number;
+};
 type Props = {
   storeId: number;
   ym: string;
@@ -66,8 +74,16 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
   const runAuto = (m: "fill" | "all") => {
     if (m === "all" && !window.confirm("入力済みのシフトを消して作り直します（希望休は残ります）。よろしいですか？")) return;
     start(async () => {
-      const r = await autoShiftAction(storeId, ym, toCells(cells), toCells(requests), m);
-      setCells(toMap(r.cells));
+      const k = (c: Cell) => `${c.staff_id}|${c.date}`;
+      const r = autoShift({
+        dates,
+        rules,
+        staff,
+        requests: new Map(toCells(requests).map((c) => [k(c), c.code])),
+        locked: m === "fill" ? new Map(toCells(cells).map((c) => [k(c), c.code])) : new Map(),
+        busyElsewhere: busySet,
+      });
+      setCells(Object.fromEntries(r.grid));
       setDirty(true);
       const bad = r.checks.filter((c) => c.messages.length).length;
       setMsg(bad ? `自動作成しました。人数が足りない日が ${bad} 日あります（赤の日）。` : "自動作成しました。内容を確認して保存してください。");
@@ -76,9 +92,13 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
 
   const save = () =>
     start(async () => {
-      const r = await saveShiftAction(storeId, ym, toCells(cells), toCells(requests));
-      setDirty(false);
-      setMsg(`保存しました（${r.savedAt}）`);
+      try {
+        await saveShiftMonth(storeId, ym, staff.map((s) => s.id), toCells(cells), toCells(requests));
+        setDirty(false);
+        setMsg(`保存しました（${new Date().toLocaleTimeString("ja-JP")}）`);
+      } catch (e) {
+        setMsg(`保存に失敗しました: ${(e as Error).message}`);
+      }
     });
 
   const workDays = (sid: number) => dates.reduce((n, d) => n + shiftWeight(cells[`${sid}|${d}`]), 0);

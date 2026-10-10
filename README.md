@@ -11,6 +11,7 @@
 | シフト作成 | 現行シフト表と同じ記号（〇・休・有・午前・午後・前有・後有・希休・日・①〜④）。希望休・有給を入れて「自動作成」すると、週の勤務日数・必要人数・看護師と機能訓練指導員の最低人数を満たす案を作ります。手直し後に保存。人数不足の日は赤表示。 |
 | 曜日別利用者枠表 | 月〜土 × 午前・午後の利用者一覧（介護度・性別・年齢・新規再開）、空き枠と稼働率。スプレッドシートの「曜日別出席リスト」を貼り付けて一括取り込み。 |
 | 店舗設定 | 定員、人員基準、定休日、時間割の時刻、車両（乗車可能人数・運転可能スタッフ）、送迎ルート（既定の車両・便ごとの時刻）、お問い合わせ先。 |
+| ログイン | パスワードでログイン（設定ファイルで指定）。ログインしないとデータは見られません。 |
 | 日々のスケジュール | 曜日別枠から出席予定を作り、お休み（理由つき）・臨時利用を反映。「自動作成」で、送迎（朝迎車・昼送車・昼迎車・帰り送車。昼送車と昼迎車は同じ車両・同じ運転者）、整体・個別機能訓練の時間割（午前・午後それぞれ20名分の一覧）、体操・メディカルケア・FIT の担当を作ります。前回と同じ担当を避け、負荷を平準化します。 |
 | 出勤状況・空きスタッフ | 資格ごとの出勤人数（午前・午後、兼務は両方に数える）を表示。送迎・時間割・体操等の担当が入っていない出勤者を時間帯ごとに割り出し、各自の担当業務を記入できます。 |
 | 印刷 | その日のスケジュールを A4 横 1 枚に配置（上段: 日付・出勤状況・休み・特記事項 / 左: 送迎4区分 / 中央: 時間割 午前・午後 各20行 / 右: 体操等の担当・空きスタッフ・担当業務）。PDF 保存も可。 |
@@ -29,43 +30,44 @@
 
 動作確認用に、店舗が無い状態のホーム画面から架空のサンプルデータを投入できます。
 
-## 起動方法
+## 構成（Xサーバーのレンタルサーバーで動きます）
 
-前提: Node.js 22 以上
+| 部分 | 技術 | 公開時の場所 |
+| --- | --- | --- |
+| 画面・シフト/送迎/時間割の自動作成 | Next.js（静的書き出し）+ TypeScript + Tailwind CSS。計算はすべてブラウザで行う | `public_html/` |
+| データ保存・ログイン・AI 文章作成 | PHP 8.2 以上（Claude は公式 PHP SDK） | `public_html/api/` |
+| データ | MySQL（動作確認用に SQLite も可） | サーバーパネルで作成 |
+
+設置手順は [docs/deploy-xserver.md](docs/deploy-xserver.md) にあります。
+
+## 開発・確認
+
+前提: Node.js 22 以上、PHP 8.2 以上、Composer
 
 ```bash
 npm install
-cp .env.example .env    # 必要に応じて ANTHROPIC_API_KEY / APP_PASSWORD を設定
-npm run build
-npm start               # http://localhost:3000
+npm run preview   # 書き出して http://localhost:8080 で起動（パスワード: preview、データは SQLite）
+npm test          # 自動作成ロジックのテスト
+npm run package   # アップロード用一式を dist/public_html と dist/east-one-xserver.zip に作る
 ```
-
-開発時は `npm run dev`、テストは `npm test` です。
-
-データは SQLite ファイル（既定: `data/east-one.db`）に保存されます。バックアップはこのファイルのコピーです。
-複数店舗から使うには、サーバーに置いて `APP_PASSWORD` を設定してください。XServer VPS への設置手順は [docs/deploy-xserver.md](docs/deploy-xserver.md) にあります。
-
-## 技術構成
-
-- Next.js 16（App Router / Server Actions）+ TypeScript + Tailwind CSS
-- SQLite（better-sqlite3）
-- Claude API（`@anthropic-ai/sdk`）— 月次報告の文章作成
 
 ```
 src/lib/shift-auto.ts   シフト自動作成（テスト付き）
 src/lib/transport.ts    送迎計画（テスト付き）
-src/lib/timetable.ts    機能訓練・整体の時間割（テスト付き）
-src/lib/import.ts       スプレッドシート貼り付けの取り込み（テスト付き）
+src/lib/timetable.ts    整体・機能訓練の時間割（テスト付き）
 src/lib/staffing.ts     資格別の出勤人数・空きスタッフ・体操等の担当（テスト付き）
+src/lib/import.ts       スプレッドシート貼り付けの取り込み（テスト付き）
 src/lib/daily-plan.ts   日々のスケジュールの自動作成（上記をまとめる）
-src/lib/report-text.ts  月次報告の文章作成
-src/lib/repo.ts         DB アクセス / src/lib/db.ts スキーマ
-src/app/s/[storeId]/    店舗ごとの画面（daily, shifts, weekly, clients, monthly, settings）
+src/lib/data.ts         データの読み書き（PHP API を呼ぶ）
+src/app/store/          店舗ごとの画面（daily, shifts, weekly, clients, monthly, settings）
+server/                 PHP（index.php: API / report.php: Claude / config.sample.php: 設定見本）
+scripts/package.sh      アップロード用一式の作成
 ```
 
 ## 今後の拡張候補
 
 - 日報スプレッドシートへの自動書き込み（Google の認証設定が必要）
+- 同じ画面を複数人で同時に編集したときの上書き防止
 - 血圧測定・入浴介助などの係の割り振り
 - 送迎の希望時間・車椅子対応などの制約
 - 個別機能訓練計画書

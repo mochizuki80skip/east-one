@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { importClientsAction } from "@/app/actions/masters";
+import { importClientsTsv } from "@/lib/forms";
 import { btnPrimary, input } from "./ui";
 
-export default function ClientImport({ storeId }: { storeId: number }) {
+export default function ClientImport({ storeId, onDone }: { storeId: number; onDone?: () => void }) {
   const [tsv, setTsv] = useState("");
   const [msg, setMsg] = useState("");
   const [pending, start] = useTransition();
@@ -21,12 +21,17 @@ export default function ClientImport({ storeId }: { storeId: number }) {
           disabled={pending || !tsv.trim()}
           onClick={() =>
             start(async () => {
-              const r = await importClientsAction(storeId, tsv);
-              setMsg(
-                `読み取り ${r.found}名 / 新規登録 ${r.created}名 / 更新 ${r.updated}名` +
-                  (r.skipped ? ` / 名前が空欄の行 ${r.skipped}件は取り込んでいません` : ""),
-              );
-              setTsv("");
+              try {
+                const r = await importClientsTsv(storeId, tsv);
+                setMsg(
+                  `読み取り ${r.found}名 / 新規登録 ${r.created}名 / 更新 ${r.updated}名` +
+                    (r.skipped ? ` / 名前が空欄の行 ${r.skipped}件は取り込んでいません` : ""),
+                );
+                setTsv("");
+                onDone?.();
+              } catch (e) {
+                setMsg(`取り込みに失敗しました: ${(e as Error).message}`);
+              }
             })
           }
         >

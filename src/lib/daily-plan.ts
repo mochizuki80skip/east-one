@@ -1,19 +1,25 @@
 import { DRIVE_SKILL, shiftWorks, splitList, TRAINING_SKILLS, type RunKind, type Session } from "./constants";
-import { buildTrainingHistory, buildTransportHistory, getStore, listClients, listRoutes, listStaff, listVehicles } from "./repo";
-import { planTransport, type TRider } from "./transport";
-import { planTraining } from "./timetable";
+import { planTransport, type TransportHistory, type TRider } from "./transport";
+import { planTraining, type TrainingHistory } from "./timetable";
 import { planDuties } from "./staffing";
-import type { DailyDetail, DailyRun, DailyTraining } from "./types";
+import type { Client, DailyDetail, DailyRun, DailyTraining, Route, Staff, Store, Vehicle } from "./types";
 
-/** 日々のスケジュールの自動作成（送迎＋機能訓練・整体の時間割）。DB には保存しない。 */
-export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warnings: string[] } {
-  const storeId = detail.store_id;
-  const store = getStore(storeId);
-  if (!store) throw new Error("store not found");
-  const staff = listStaff({ storeId, activeOnly: true });
-  const clients = new Map(listClients(storeId, { includeEnded: true }).map((c) => [c.id, c]));
-  const vehicles = listVehicles(storeId, true);
-  const routes = listRoutes(storeId);
+export type PlanContext = {
+  store: Store;
+  staff: Staff[];
+  clients: Client[];
+  vehicles: Vehicle[];
+  routes: Route[];
+  history: { transport: TransportHistory; training: TrainingHistory };
+};
+
+/** 日々のスケジュールの自動作成（送迎・時間割・体操等の担当）。純粋関数で、保存はしない。 */
+export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: DailyDetail; warnings: string[] } {
+  const { store } = ctx;
+  const staff = ctx.staff.filter((s) => s.status === "在籍");
+  const clients = new Map(ctx.clients.map((c) => [c.id, c]));
+  const vehicles = ctx.vehicles.filter((v) => v.active);
+  const routes = ctx.routes;
   const warnings: string[] = [];
 
   const codeOf = new Map(detail.shifts.map((s) => [s.staff_id, s.code]));
@@ -55,7 +61,7 @@ export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warni
       noon_pick: driversFor((w) => w.pm),
       evening: driversFor((w) => w.pm),
     },
-    history: buildTransportHistory(storeId, detail.date),
+    history: ctx.history.transport,
   });
   if (vehicles.length === 0) warnings.push("車両が登録されていません（店舗設定で登録してください）。");
   warnings.push(...t.warnings);
@@ -89,7 +95,7 @@ export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warni
       );
     return order;
   };
-  const history = buildTrainingHistory(storeId, detail.date);
+  const history = ctx.history.training;
   const training: DailyTraining[] = [];
   for (const session of ["am", "pm"] as const) {
     const ids = (session === "am" ? amIds : pmIds).filter((id) => clients.get(id)!.needs_training);

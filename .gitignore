@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# sqlite
-/data/*.db
-/data/*.db-*
+# PHP サーバー（Xサーバー用）
+/server/vendor/
+/server/config.php
+/server/data/*.sqlite*
+# 静的書き出し・配布用 zip
+/dist/

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import AuthGate from "@/components/AuthGate";
+import LogoutButton from "@/components/LogoutButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,20 +18,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="font-bold">
               East-one 業務サポート
             </Link>
-            <nav className="flex flex-wrap gap-x-4 text-sm">
+            <nav className="flex flex-1 flex-wrap gap-x-4 text-sm">
               <Link href="/" className="hover:underline">
                 店舗一覧
               </Link>
-              <Link href="/staff" className="hover:underline">
+              <Link href="/staff/" className="hover:underline">
                 スタッフ
               </Link>
-              <Link href="/caremanagers" className="hover:underline">
+              <Link href="/caremanagers/" className="hover:underline">
                 ケアマネ
               </Link>
             </nav>
+            <LogoutButton />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-5 flex-1 print:max-w-none print:p-0">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-5 flex-1 print:max-w-none print:p-0">
+          <AuthGate>{children}</AuthGate>
+        </main>
       </body>
     </html>
   );

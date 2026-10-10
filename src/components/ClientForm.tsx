@@ -1,7 +1,11 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { CareManager, Client, ClientSlot, Route } from "@/lib/types";
 import { CARE_LEVELS, CLIENT_STATUSES, OPEN_WEEKDAY_ORDER, SESSIONS, WEEKDAYS } from "@/lib/constants";
-import { deleteClientAction, saveClientAction } from "@/app/actions/masters";
-import ConfirmButton from "./ConfirmButton";
+import { deleteClient } from "@/lib/data";
+import { submitClient } from "@/lib/forms";
+import { links } from "@/lib/links";
 import { Card, btnDanger, btnPrimary, input, label, td, th } from "./ui";
 
 type Props = {
@@ -14,12 +18,18 @@ type Props = {
 };
 
 export default function ClientForm({ storeId, client, slots, careManagers, routes, back }: Props) {
+  const router = useRouter();
   const has = (w: number, s: string) => slots.some((x) => x.weekday === w && x.session === s);
   return (
     <Card>
-      <form action={saveClientAction} className="grid gap-4 md:grid-cols-4">
+      <form
+        action={async (fd) => {
+          await submitClient(fd);
+          router.push(back);
+        }}
+        className="grid gap-4 md:grid-cols-4"
+      >
         <input type="hidden" name="store_id" value={storeId} />
-        <input type="hidden" name="back" value={back} />
         {client && <input type="hidden" name="id" value={client.id} />}
         <div>
           <label className={label}>名前</label>
@@ -151,13 +161,18 @@ export default function ClientForm({ storeId, client, slots, careManagers, route
         </div>
       </form>
       {client && (
-        <form action={deleteClientAction} className="mt-4 border-t pt-3">
-          <input type="hidden" name="store_id" value={storeId} />
-          <input type="hidden" name="id" value={client.id} />
-          <ConfirmButton message={`${client.name} 様を削除します。出欠や月次の記録も消えます。利用終了の場合は状態を「終了」にしてください。`} className={btnDanger}>
+        <div className="mt-4 border-t pt-3">
+          <button
+            className={btnDanger}
+            onClick={async () => {
+              if (!window.confirm(`${client.name} 様を削除します。月次報告も消えます。利用終了の場合は削除せず、状態を「終了」にしてください。削除しますか？`)) return;
+              await deleteClient(client.id);
+              router.push(links.clients(storeId));
+            }}
+          >
             削除
-          </ConfirmButton>
-        </form>
+          </button>
+        </div>
       )}
     </Card>
   );

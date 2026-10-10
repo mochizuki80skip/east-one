@@ -1,16 +1,27 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { Staff, Store } from "@/lib/types";
 import { EMPLOYMENT_TYPES, ROLES, SKILLS, STAFF_STATUSES, splitList, WEEKDAYS } from "@/lib/constants";
-import { deleteStaffAction, saveStaffAction } from "@/app/actions/masters";
-import ConfirmButton from "./ConfirmButton";
+import { deleteStaff } from "@/lib/data";
+import { submitStaff } from "@/lib/forms";
+import { links } from "@/lib/links";
 import { Card, btnDanger, btnPrimary, input, label } from "./ui";
 
 export default function StaffForm({ staff, stores, defaultStoreId }: { staff?: Staff; stores: Store[]; defaultStoreId?: number }) {
+  const router = useRouter();
   const skills = splitList(staff?.skills);
   const storeIds = staff ? splitList(staff.store_ids).map(Number) : defaultStoreId ? [defaultStoreId] : [];
   const days = splitList(staff?.available_weekdays ?? "1,2,3,4,5,6").map(Number);
   return (
     <Card>
-      <form action={saveStaffAction} className="grid gap-4 md:grid-cols-3">
+      <form
+        action={async (fd) => {
+          await submitStaff(fd);
+          router.push(links.staff());
+        }}
+        className="grid gap-4 md:grid-cols-3"
+      >
         {staff && <input type="hidden" name="id" value={staff.id} />}
         <div>
           <label className={label}>名前</label>
@@ -93,12 +104,18 @@ export default function StaffForm({ staff, stores, defaultStoreId }: { staff?: S
         </div>
       </form>
       {staff && (
-        <form action={deleteStaffAction} className="mt-4 border-t pt-3">
-          <input type="hidden" name="id" value={staff.id} />
-          <ConfirmButton message={`${staff.name} を削除します。シフトの記録も消えます。退職の場合はステータスを「退職」にしてください。`} className={btnDanger}>
+        <div className="mt-4 border-t pt-3">
+          <button
+            className={btnDanger}
+            onClick={async () => {
+              if (!window.confirm(`${staff.name} を削除します。退職の場合は削除せず、ステータスを「退職」にしてください。削除しますか？`)) return;
+              await deleteStaff(staff.id);
+              router.push(links.staff());
+            }}
+          >
             削除
-          </ConfirmButton>
-        </form>
+          </button>
+        </div>
       )}
     </Card>
   );

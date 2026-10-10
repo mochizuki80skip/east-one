@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { importStaffAction } from "@/app/actions/masters";
+import { importStaffTsv } from "@/lib/forms";
 import { btnPrimary, input } from "./ui";
 
-export default function StaffImport({ stores }: { stores: { id: number; name: string }[] }) {
+export default function StaffImport({ stores, onDone }: { stores: { id: number; name: string }[]; onDone?: () => void }) {
   const [storeId, setStoreId] = useState(stores[0]?.id ?? 0);
   const [tsv, setTsv] = useState("");
   const [msg, setMsg] = useState("");
@@ -32,9 +32,14 @@ export default function StaffImport({ stores }: { stores: { id: number; name: st
           disabled={pending || !tsv.trim()}
           onClick={() =>
             start(async () => {
-              const r = await importStaffAction(storeId, tsv);
-              setMsg(`読み取り ${r.found}名 / 新規登録 ${r.created}名 / 店舗に追加 ${r.linked}名`);
-              setTsv("");
+              try {
+                const r = await importStaffTsv(storeId, tsv);
+                setMsg(`読み取り ${r.found}名 / 新規登録 ${r.created}名 / 店舗に追加 ${r.linked}名`);
+                setTsv("");
+                onDone?.();
+              } catch (e) {
+                setMsg(`取り込みに失敗しました: ${(e as Error).message}`);
+              }
             })
           }
         >

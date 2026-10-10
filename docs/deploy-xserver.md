@@ -1,99 +1,92 @@
-# XServer VPS への設置手順
+# Xサーバー（レンタルサーバー）への設置手順
 
-このシステムは Node.js のサーバーを常時起動し、データを SQLite ファイルに保存します。
-そのため、PHP や WordPress 向けの共用レンタルサーバーではなく、**XServer VPS**（Ubuntu）に置く前提の手順です。
+このシステムは、Xサーバーのレンタルサーバーでそのまま動く構成です。
 
-## 0. 用意するもの
+| 部分 | 中身 | 置き場所 |
+| --- | --- | --- |
+| 画面と自動作成の計算 | 静的ファイル（HTML / JavaScript / CSS） | `public_html/` |
+| データの保存・ログイン・AI の文章作成 | PHP | `public_html/api/` |
+| データ | MySQL | サーバーパネルで作成 |
 
-| 項目 | 内容 |
-| --- | --- |
-| サーバー | XServer VPS（メモリ 2GB 以上を推奨）。OS は Ubuntu 24.04 |
-| ドメイン | Xserverドメインで取得（例: `eastone-hachimaru-80skip.com`） |
-| AI のキー | 月次報告の文章作成に使う ANTHROPIC_API_KEY（任意） |
+Node.js やコマンド操作は不要です。必要なのは、サーバーパネルでの設定とファイルのアップロードだけです。
 
-## 1. VPS とドメインの準備（管理画面）
+## 1. アップロードするファイルを用意する
 
-1. XServer VPS を申し込み、OS に Ubuntu 24.04 を選ぶ。root パスワードか SSH キーを設定する
-2. VPS パネルの「パケットフィルター設定」で SSH（22）・Web（80, 443）を許可する
-3. Xserverドメインでドメインを取得し、DNS に A レコードを追加する  
-   ホスト名: 空欄（ドメインそのもの） / 内容: VPS の IP アドレス
-
-## 2. サーバーの初期設定（SSH で接続して実行）
+開発用のパソコン（Node.js 22 以上・PHP・Composer が入ったもの）で次を実行します。
 
 ```bash
-# 必要なソフト
-apt update && apt -y upgrade
-apt -y install git nginx sqlite3 build-essential python3 certbot python3-certbot-nginx
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt -y install nodejs
-
-# アプリ用のユーザー
-adduser --disabled-password --gecos "" eastone
+npm install
+npm run package
 ```
 
-## 3. アプリの設置
+`dist/public_html/` フォルダ（と同じ中身の `dist/east-one-xserver.zip`）ができます。これがアップロードする一式です。
+
+## 2. サーバーパネルでの準備
+
+1. **ドメインを追加する**: 「ドメイン設定」で取得したドメインを追加します。「無料独自SSLを利用する」にチェックを入れたままにします。
+2. **PHP のバージョンを選ぶ**: 「PHP Ver.切替」で、そのドメインを **PHP 8.2 以上**（8.3 推奨）にします。
+3. **MySQL を作る**: 「MySQL設定」で次の 3 つを行います。
+   - 「MySQL追加」でデータベースを作る（例: `xxxxx_eastone`）
+   - 「MySQLユーザ追加」でユーザーとパスワードを作る
+   - 作ったデータベースの「アクセス権所有ユーザ」にそのユーザーを追加する
+   - 「MySQL一覧」に出るホスト名を控えておく
+
+## 3. 設定ファイルを作る
+
+`dist/public_html/api/config.sample.php` をコピーして、同じフォルダに `config.php` という名前で保存します。中身を書き換えてください。
+
+```php
+'password' => 'ログイン用のパスワード（長く、推測されにくいもの）',
+'db' => [
+    'driver' => 'mysql',
+    'host' => 'MySQL一覧に出ているホスト名',
+    'name' => 'xxxxx_eastone',
+    'user' => 'xxxxx_eastone',
+    'pass' => 'MySQLユーザーのパスワード',
+],
+'anthropic_api_key' => '月次報告をAIで作る場合のキー（空欄でも動きます）',
+```
+
+`config.php` はブラウザからは読めないよう、`.htaccess` で保護しています。
+
+## 4. アップロード
+
+FTP ソフト（FileZilla など）でサーバーに接続し、`dist/public_html/` の**中身**を、ドメインの `public_html/` にアップロードします。
+
+- アップロード先: `/（ドメイン名）/public_html/`
+- `.htaccess` のように名前が「.」で始まるファイルもアップロードしてください（FileZilla は「サーバー → 隠しファイルを強制表示」）
+- 最初から入っている `index.html`（Xサーバーの初期ページ）は上書きされます
+
+SSH を使える場合は、zip をアップロードして `unzip east-one-xserver.zip` で展開しても同じです。
+
+## 5. 動作確認
+
+1. `https://（ドメイン）/` を開き、`config.php` のパスワードでログインする
+2. 店舗一覧で店舗（本店・三島店・長泉店）を追加する
+3. 「スタッフ」「ケアマネ」「店舗設定」「曜日別利用者」の順に登録する
+
+データベースの表は、初めてログインしたときに自動で作られます。
+
+## 更新するとき
 
 ```bash
-su - eastone
-git clone https://github.com/mochizuki80skip/east-one.git
-cd east-one
-git checkout claude/zen-fermi-tec4ia   # 運用するブランチ（main にまとめた後は main）
-cp .env.example .env
-nano .env                    # APP_PASSWORD（必須）と ANTHROPIC_API_KEY を設定
-npm ci
-npm run build
-exit
-```
-
-`.env` の例:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-DATABASE_PATH=/home/eastone/east-one/data/east-one.db
-APP_PASSWORD=（推測されにくいパスワード）
-APP_USER=eastone
-```
-
-## 4. 常時起動と Web 公開
-
-```bash
-cp /home/eastone/east-one/deploy/east-one.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now east-one
-systemctl status east-one          # active (running) を確認
-
-cp /home/eastone/east-one/deploy/nginx-east-one.conf /etc/nginx/sites-available/east-one
-sed -i 's/DOMAIN/eastone-hachimaru-80skip.com/' /etc/nginx/sites-available/east-one   # 取得したドメインに置き換え
-ln -s /etc/nginx/sites-available/east-one /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-
-# HTTPS（無料証明書。自動更新される）
-certbot --nginx -d eastone-hachimaru-80skip.com
-```
-
-ブラウザで `https://（ドメイン）` を開き、ユーザー名とパスワードを入れるとホーム画面が出れば完了です。
-
-## 5. バックアップ
-
-```bash
-su - eastone
-crontab -e
-# 次の1行を追加（毎日 3:30 に data/ を backups/ へ保存、30日分保持）
-30 3 * * * /home/eastone/east-one/deploy/backup.sh
-```
-
-VPS パネルの「自動バックアップ」も合わせて有効にしておくと安心です。
-
-## 6. 更新するとき
-
-```bash
-su - eastone
-cd east-one
 git pull
-npm ci
-npm run build
-exit
-systemctl restart east-one
+npm run package
 ```
 
-データベースの形式が変わる更新でも、起動時に自動で移行されます。念のため更新前に `deploy/backup.sh` を実行してください。
+`dist/public_html/` をもう一度アップロードします。`api/config.php` は一式に含まれないので、上書きされません。
+
+## バックアップ
+
+- サーバーパネルの「バックアップ」から、Web ファイルと MySQL を過去の日付に戻せます
+- 手動で残す場合は、「phpMyAdmin」でデータベースをエクスポートしてください（テーブルは `eo_docs` と `eo_counters` の 2 つだけです）
+
+## うまく動かないとき
+
+| 症状 | 確認すること |
+| --- | --- |
+| ログイン画面で「config.php がありません」 | `api/config.php` をアップロードしたか |
+| 「データベースに接続できません」 | `config.php` のホスト名・DB名・ユーザー名・パスワード、アクセス権の設定 |
+| 「パスワードを設定してください」 | `config.php` の `password` を書き換えたか |
+| 画面が真っ白・500 エラー | PHP のバージョンが 8.2 以上か、`.htaccess` がアップロードされているか |
+| AI の文章作成が失敗する | `anthropic_api_key`、`api/vendor/` フォルダがアップロードされているか |

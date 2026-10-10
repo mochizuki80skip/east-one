@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { DailyNote } from "@/lib/repo";
-import { generateReportAction, saveReportAction } from "@/app/actions/monthly";
+import type { DailyNote } from "@/lib/data";
+import { saveMonthlyReport } from "@/lib/data";
+import { generateMonthlyReportText } from "@/lib/report-text";
 import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
 
 type Props = {
   clientId: number;
+  clientName: string;
+  careLevel: string;
   ym: string;
   notes: DailyNote[];
   initialKeywords: string;
@@ -14,7 +17,7 @@ type Props = {
   hasApiKey: boolean;
 };
 
-export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, initialBody, hasApiKey }: Props) {
+export default function MonthlyEditor({ clientId, clientName, careLevel, ym, notes, initialKeywords, initialBody, hasApiKey }: Props) {
   const [keywords, setKeywords] = useState(initialKeywords);
   const [body, setBody] = useState(initialBody);
   const [pending, start] = useTransition();
@@ -28,7 +31,7 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
     start(async () => {
       if (body && !window.confirm("今の本文を置き換えます。よろしいですか？")) return;
       setMsg(hasApiKey ? "AI が文章を作成しています…" : "簡易テンプレートで作成しています…");
-      const r = await generateReportAction(clientId, ym, keywords);
+      const r = await generateMonthlyReportText({ clientName, careLevel, ym, keywords, notes });
       setBody(r.text);
       setDirty(true);
       setMsg(r.warning ?? (r.engine === "claude" ? "AI で文章を作成しました。内容を確認・修正して保存してください。" : "作成しました。"));
@@ -36,9 +39,13 @@ export default function MonthlyEditor({ clientId, ym, notes, initialKeywords, in
 
   const save = () =>
     start(async () => {
-      const r = await saveReportAction(clientId, ym, keywords, body);
-      setDirty(false);
-      setMsg(`保存しました（${r.savedAt}）`);
+      try {
+        await saveMonthlyReport(clientId, ym, keywords, body);
+        setDirty(false);
+        setMsg(`保存しました（${new Date().toLocaleTimeString("ja-JP")}）`);
+      } catch (e) {
+        setMsg(`保存に失敗しました: ${(e as Error).message}`);
+      }
     });
 
   return (

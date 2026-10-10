@@ -18,7 +18,9 @@ import {
 import type { DailyDetail, DailyRun } from "@/lib/types";
 import { dailyReportRow, reasonsTsv, reportRowTsv } from "@/lib/daily-report";
 import { freeStaffBlocks, qualificationSummary } from "@/lib/staffing";
-import { autoPlanAction, saveDailyAction } from "@/app/actions/daily";
+import { autoPlanDaily, type PlanContext } from "@/lib/daily-plan";
+import { saveDaily } from "@/lib/data";
+import { links } from "@/lib/links";
 import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
 
 type StaffLite = { id: number; name: string; role: string; skills: string[] };
@@ -35,6 +37,8 @@ type VehicleLite = { id: number; name: string; capacity: number; driverIds: numb
 
 type Props = {
   initial: DailyDetail;
+  /** 自動作成に使うデータ（店舗・スタッフ・利用者・車両・ルート・過去の担当） */
+  planContext: PlanContext;
   slots: { am: string[]; pm: string[] };
   staff: StaffLite[];
   clients: ClientLite[];
@@ -52,7 +56,7 @@ let keySeq = 0;
 const newKey = () => `n${Date.now()}_${keySeq++}`;
 const renumber = (riders: DailyRun["riders"]) => riders.map((r, i) => ({ ...r, seq: i + 1 }));
 
-export default function DailyEditor({ initial, slots, staff, clients, vehicles }: Props) {
+export default function DailyEditor({ initial, planContext, slots, staff, clients, vehicles }: Props) {
   const [d, setD] = useState<DailyDetail>(initial);
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
@@ -193,7 +197,7 @@ export default function DailyEditor({ initial, slots, staff, clients, vehicles }
   const auto = () => {
     if ((d.runs.length || d.training.length) && !window.confirm("送迎・時間割・体操等の担当を作り直します。手で直した内容は消えます。よろしいですか？")) return;
     start(async () => {
-      const r = await autoPlanAction(d);
+      const r = autoPlanDaily(d, planContext);
       setD(r.detail);
       setWarnings(r.warnings);
       setDirty(true);
@@ -202,14 +206,18 @@ export default function DailyEditor({ initial, slots, staff, clients, vehicles }
   };
   const save = (then?: () => void) =>
     start(async () => {
-      const r = await saveDailyAction(d);
-      setD((p) => ({ ...p, saved: true }));
-      setDirty(false);
-      setMsg(`保存しました（${r.savedAt}）`);
-      then?.();
+      try {
+        await saveDaily(d);
+        setD((p) => ({ ...p, saved: true }));
+        setDirty(false);
+        setMsg(`保存しました（${new Date().toLocaleTimeString("ja-JP")}）`);
+        then?.();
+      } catch (e) {
+        setMsg(`保存に失敗しました: ${(e as Error).message}`);
+      }
     });
   const print = () => {
-    const url = `/s/${d.store_id}/daily/${d.date}/print`;
+    const url = links.dailyPrint(d.store_id, d.date);
     if (!dirty && d.saved) {
       window.open(url, "_blank");
       return;
