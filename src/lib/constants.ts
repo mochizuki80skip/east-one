@@ -24,7 +24,7 @@ export const EMPLOYMENT_TYPES = [
 export const STAFF_STATUSES = ["在籍", "休職", "退職"] as const;
 
 /** できること（複数選択） */
-export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "血圧測定", "入浴介助", "事務"] as const;
+export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "メディカルケア", "FIT", "血圧測定", "入浴介助", "事務"] as const;
 export type Skill = (typeof SKILLS)[number];
 
 /** 送迎の運転担当になれるスキル */
@@ -104,12 +104,26 @@ export const SESSIONS = [
 ] as const;
 export type Session = "am" | "pm";
 
+/**
+ * 送迎の便。昼送車と昼迎車は同じ車両・同じ運転者で回る（車両ごとに運転者を共有）。
+ */
 export const RUNS = [
-  { key: "morning", label: "朝送迎", note: "午前利用者のお迎え" },
-  { key: "noon", label: "昼送迎", note: "午前利用者のお送り → 午後利用者のお迎え" },
-  { key: "evening", label: "帰り送迎", note: "午後利用者のお送り" },
+  { key: "morning", label: "朝迎車", note: "午前利用者のお迎え", session: "am", dir: "pickup" },
+  { key: "noon_drop", label: "昼送車", note: "午前利用者のお送り", session: "am", dir: "dropoff" },
+  { key: "noon_pick", label: "昼迎車", note: "午後利用者のお迎え（昼送車と同じ車両・運転者）", session: "pm", dir: "pickup" },
+  { key: "evening", label: "帰り送車", note: "午後利用者のお送り", session: "pm", dir: "dropoff" },
 ] as const;
-export type RunKind = "morning" | "noon" | "evening";
+export type RunKind = (typeof RUNS)[number]["key"];
+export const RUN_KEYS: RunKind[] = RUNS.map((r) => r.key);
+export const isNoonRun = (r: RunKind) => r === "noon_drop" || r === "noon_pick";
+export const runLabel = (r: RunKind) => RUNS.find((x) => x.key === r)?.label ?? r;
+
+/** 体操・メディカルケア・FIT の担当（午前・午後それぞれ） */
+export const DUTIES = ["体操", "メディカルケア", "FIT"] as const;
+export type Duty = (typeof DUTIES)[number];
+
+/** 出勤状況で数える資格の区分（「〇〇兼〇〇」は両方に数える） */
+export const QUALIFICATIONS = ["管理者", "生活相談員", "介護職員", "機能訓練指導員", "看護師", "ドライバー"] as const;
 
 export const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 /** 営業曜日の表示順（月〜土） */

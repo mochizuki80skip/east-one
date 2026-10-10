@@ -25,10 +25,10 @@ export function seedSample(): number | null {
     });
 
     const staff: [string, string, string, string, number][] = [
-      ["青木", "管理者", "A", "運転,体操", 5],
-      ["井上", "生活相談員兼介護職員", "B", "運転,添乗,体操,血圧測定", 5],
-      ["上田", "介護職員", "A", "運転,添乗", 5],
-      ["江口", "生活相談員兼介護職員", "D", "運転,添乗,整体", 4],
+      ["青木", "管理者", "A", "運転,体操,事務", 5],
+      ["井上", "生活相談員兼介護職員", "B", "運転,添乗,体操,メディカルケア,FIT,血圧測定", 5],
+      ["上田", "介護職員", "A", "運転,添乗,体操,メディカルケア,FIT", 5],
+      ["江口", "生活相談員兼介護職員", "D", "運転,添乗,整体,体操", 4],
       ["大野", "機能訓練指導員", "B", "整体,個別機能訓練", 5],
       ["加藤", "機能訓練指導員", "A", "整体,個別機能訓練,運転", 5],
       ["木村", "機能訓練指導員兼介護職員", "D", "整体,個別機能訓練,運転", 4],
@@ -62,14 +62,14 @@ export function seedSample(): number | null {
       saveVehicle({ store_id: storeId, name, capacity, sort_order: i + 1, active: 1, driverIds: name === "セレナ" ? [staffIds[7], staffIds[1], staffIds[2]] : [] }),
     );
     const vs = listVehicles(storeId);
-    const routes: [string, string, string, string][] = [
-      ["北ルート", "8:10", "11:00", "15:20"],
-      ["南ルート", "8:10", "11:00", "15:25"],
-      ["東ルート", "8:20", "11:10", "15:30"],
-      ["西ルート", "8:20", "11:10", "15:30"],
+    const routes: [string, string, string, string, string][] = [
+      ["北ルート", "8:10", "11:00", "13:20", "15:20"],
+      ["南ルート", "8:10", "11:00", "13:20", "15:25"],
+      ["東ルート", "8:20", "11:10", "13:30", "15:30"],
+      ["西ルート", "8:20", "11:10", "13:30", "15:30"],
     ];
-    routes.forEach(([name, m, n, e], i) =>
-      saveRoute({ store_id: storeId, name, vehicle_id: vs[i].id, morning_time: m, noon_time: n, evening_time: e, sort_order: i + 1 }),
+    routes.forEach(([name, m, n, np, e], i) =>
+      saveRoute({ store_id: storeId, name, vehicle_id: vs[i].id, morning_time: m, noon_time: n, noon_pick_time: np, evening_time: e, sort_order: i + 1 }),
     );
     const rs = listRoutes(storeId);
 

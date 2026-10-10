@@ -1,0 +1,20 @@
+# /etc/systemd/system/east-one.service
+# East-one 業務サポートを常時起動する設定（XServer VPS / Ubuntu）
+[Unit]
+Description=East-one 業務サポート (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=eastone
+WorkingDirectory=/home/eastone/east-one
+EnvironmentFile=/home/eastone/east-one/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/npm start -- -p 3000 -H 127.0.0.1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

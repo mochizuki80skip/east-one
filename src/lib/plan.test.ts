@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { planTransport, type TRoute, type TVehicle } from "./transport";
 import { planTraining } from "./timetable";
 
-const times = (m: string) => ({ morning: m, noon: "11:00", evening: "15:30" });
+const times = (m: string) => ({ morning: m, noon_drop: "11:00", noon_pick: "13:20", evening: "15:30" });
 const vehicles: TVehicle[] = [
   { id: 1, capacity: 3, sortOrder: 1, allowedDriverIds: [] },
   { id: 2, capacity: 3, sortOrder: 2, allowedDriverIds: [] },
@@ -27,7 +27,7 @@ test("送迎: ルートの既定車両に乗せ、ルート順に並べる", () 
     pmRiders: [],
     vehicles,
     routes,
-    drivers: { morning: drivers, noon: drivers, evening: drivers },
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
     history: noHistory,
   });
   const morning = res.runs.filter((x) => x.run === "morning");
@@ -42,7 +42,7 @@ test("送迎: 乗車可能人数を超えたら空きのある車両へ回す", 
     pmRiders: [],
     vehicles,
     routes,
-    drivers: { morning: drivers, noon: drivers, evening: drivers },
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
     history: noHistory,
   });
   const morning = res.runs.filter((x) => x.run === "morning");
@@ -57,7 +57,7 @@ test("送迎: 同じ便で1人が2台を運転せず、車両の運転制限と�
     pmRiders: [],
     vehicles,
     routes,
-    drivers: { morning: drivers, noon: drivers, evening: drivers },
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
     history: { lastDriver: new Map([["morning|1", 20]]), driveCounts: new Map() },
   });
   const morning = res.runs.filter((x) => x.run === "morning");
@@ -67,17 +67,55 @@ test("送迎: 同じ便で1人が2台を運転せず、車両の運転制限と�
   assert.notEqual(morning.find((x) => x.vehicleId === 1)!.driverId, 20);
 });
 
-test("送迎: 昼便はお送り→お迎えの順で、それぞれ乗車可能人数を数える", () => {
+test("送迎: 昼送車と昼迎車に分け、同じ車両は同じ運転者が乗る", () => {
   const res = planTransport({
-    amRiders: [r(1, 10), r(2, 10), r(3, 10)],
-    pmRiders: [r(4, 10), r(5, 10), r(6, 10)],
+    amRiders: [r(1, 10), r(2, 10), r(3, 11)],
+    pmRiders: [r(4, 10), r(5, 11), r(6, 11)],
     vehicles,
     routes,
-    drivers: { morning: drivers, noon: drivers, evening: drivers },
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
     history: noHistory,
   });
-  const noon = res.runs.find((x) => x.run === "noon" && x.vehicleId === 1)!;
-  assert.deepEqual(noon.riders.map((x) => x.direction), ["dropoff", "dropoff", "dropoff", "pickup", "pickup", "pickup"]);
+  const drop = res.runs.filter((x) => x.run === "noon_drop");
+  const pick = res.runs.filter((x) => x.run === "noon_pick");
+  assert.deepEqual(drop.find((x) => x.vehicleId === 1)!.riders.map((x) => x.clientId), [1, 2]);
+  assert.deepEqual(pick.find((x) => x.vehicleId === 1)!.riders.map((x) => x.clientId), [4]);
+  assert.equal(pick.find((x) => x.vehicleId === 1)!.departTime, "13:20");
+  for (const v of [1, 2]) {
+    assert.equal(drop.find((x) => x.vehicleId === v)!.driverId, pick.find((x) => x.vehicleId === v)!.driverId);
+  }
+  assert.notEqual(drop.find((x) => x.vehicleId === 1)!.driverId, drop.find((x) => x.vehicleId === 2)!.driverId);
+});
+
+test("送迎: 昼の運転者は昼送車・昼迎車の両方の時間に勤務している人から選ぶ", () => {
+  const res = planTransport({
+    amRiders: [r(1, 10)],
+    pmRiders: [r(2, 10)],
+    vehicles,
+    routes,
+    drivers: { morning: drivers, noon_drop: [drivers[0], drivers[1]], noon_pick: [drivers[1]], evening: drivers },
+    history: noHistory,
+  });
+  assert.ok(res.runs.filter((x) => x.run.startsWith("noon")).every((x) => x.driverId === 21));
+});
+
+test("送迎: 午前と午後でルートの車両が違っても、昼迎車は昼送車の車両に寄せる", () => {
+  const rs: TRoute[] = [...routes, { id: 12, vehicleId: 3, sortOrder: 3, times: times("8:30") }];
+  const res = planTransport({
+    amRiders: [r(1, 10), r(2, 10)],
+    pmRiders: [r(3, 12), r(4, 12)],
+    vehicles,
+    routes: rs,
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
+    history: noHistory,
+  });
+  const pick = res.runs.filter((x) => x.run === "noon_pick");
+  assert.deepEqual(pick.map((x) => x.vehicleId), [1]);
+  assert.deepEqual(pick[0].riders.map((x) => x.clientId), [3, 4]);
+  // 帰り送車はルートどおりの車両
+  assert.deepEqual(res.runs.filter((x) => x.run === "evening").map((x) => x.vehicleId), [3]);
+  const drop = res.runs.find((x) => x.run === "noon_drop")!;
+  assert.equal(drop.driverId, pick[0].driverId);
 });
 
 test("送迎: 運転できる人がいなければ警告", () => {
@@ -86,7 +124,7 @@ test("送迎: 運転できる人がいなければ警告", () => {
     pmRiders: [],
     vehicles,
     routes,
-    drivers: { morning: [], noon: [], evening: [] },
+    drivers: { morning: [], noon_drop: [], noon_pick: [], evening: [] },
     history: noHistory,
   });
   assert.equal(res.runs[0].driverId, null);

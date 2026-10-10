@@ -11,10 +11,10 @@ import type {
   Store,
   Vehicle,
 } from "./types";
-import { joinList, splitList, type Session } from "./constants";
+import { joinList, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
 import { normalizeName } from "./import";
-import type { TransportHistory } from "./transport";
+import { driverGroupOf, type TransportHistory } from "./transport";
 import type { TrainingHistory } from "./timetable";
 
 const db = () => getDb();
@@ -160,13 +160,13 @@ export function saveRoute(r: Omit<Route, "id"> & { id?: number }) {
   if (r.id)
     db()
       .prepare(
-        `UPDATE routes SET name=@name, vehicle_id=@vehicle_id, morning_time=@morning_time, noon_time=@noon_time, evening_time=@evening_time, sort_order=@sort_order WHERE id=@id AND store_id=@store_id`,
+        `UPDATE routes SET name=@name, vehicle_id=@vehicle_id, morning_time=@morning_time, noon_time=@noon_time, noon_pick_time=@noon_pick_time, evening_time=@evening_time, sort_order=@sort_order WHERE id=@id AND store_id=@store_id`,
       )
       .run(r);
   else
     db()
       .prepare(
-        `INSERT INTO routes (store_id, name, vehicle_id, morning_time, noon_time, evening_time, sort_order) VALUES (@store_id, @name, @vehicle_id, @morning_time, @noon_time, @evening_time, @sort_order)`,
+        `INSERT INTO routes (store_id, name, vehicle_id, morning_time, noon_time, noon_pick_time, evening_time, sort_order) VALUES (@store_id, @name, @vehicle_id, @morning_time, @noon_time, @noon_pick_time, @evening_time, @sort_order)`,
       )
       .run(r);
 }
@@ -357,7 +357,9 @@ export function getDaily(storeId: number, date: string): DailyDetail {
       riders: riderStmt.all(r.id) as DailyRun["riders"],
     }));
     const training = d.prepare(`SELECT session, client_id, slot_time, staff_id FROM daily_training WHERE daily_id = ?`).all(daily.id) as DailyDetail["training"];
-    return { store_id: storeId, date, memo: daily.memo, saved: true, shifts, attendance, runs, training };
+    const duties = d.prepare(`SELECT session, duty, staff_id FROM daily_duties WHERE daily_id = ?`).all(daily.id) as DailyDetail["duties"];
+    const tasks = d.prepare(`SELECT staff_id, task FROM daily_tasks WHERE daily_id = ?`).all(daily.id) as DailyDetail["tasks"];
+    return { store_id: storeId, date, memo: daily.memo, saved: true, shifts, attendance, runs, training, duties, tasks };
   }
 
   // 未保存の日: 曜日別利用者枠から出席予定を作る
@@ -366,7 +368,7 @@ export function getDaily(storeId: number, date: string): DailyDetail {
   const attendance = listSlots(storeId)
     .filter((s) => s.weekday === wd && active.has(s.client_id))
     .map((s) => ({ client_id: s.client_id, session: s.session, status: "present" as const, reason: "", extra: 0, note: "" }));
-  return { store_id: storeId, date, memo: "", saved: false, shifts, attendance, runs: [], training: [] };
+  return { store_id: storeId, date, memo: "", saved: false, shifts, attendance, runs: [], training: [], duties: [], tasks: [] };
 }
 
 export function saveDaily(detail: DailyDetail) {
@@ -380,6 +382,8 @@ export function saveDaily(detail: DailyDetail) {
     d.prepare(`DELETE FROM daily_attendance WHERE daily_id = ?`).run(id);
     d.prepare(`DELETE FROM daily_runs WHERE daily_id = ?`).run(id);
     d.prepare(`DELETE FROM daily_training WHERE daily_id = ?`).run(id);
+    d.prepare(`DELETE FROM daily_duties WHERE daily_id = ?`).run(id);
+    d.prepare(`DELETE FROM daily_tasks WHERE daily_id = ?`).run(id);
 
     const insA = d.prepare(
       `INSERT OR REPLACE INTO daily_attendance (daily_id, client_id, session, status, reason, extra, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -397,6 +401,10 @@ export function saveDaily(detail: DailyDetail) {
 
     const insT = d.prepare(`INSERT OR REPLACE INTO daily_training (daily_id, session, client_id, slot_time, staff_id) VALUES (?, ?, ?, ?, ?)`);
     for (const t of detail.training) insT.run(id, t.session, t.client_id, t.slot_time, t.staff_id);
+    const insD = d.prepare(`INSERT OR REPLACE INTO daily_duties (daily_id, session, duty, staff_id) VALUES (?, ?, ?, ?)`);
+    for (const x of detail.duties) insD.run(id, x.session, x.duty, x.staff_id);
+    const insK = d.prepare(`INSERT OR REPLACE INTO daily_tasks (daily_id, staff_id, task) VALUES (?, ?, ?)`);
+    for (const x of detail.tasks) if (x.task.trim()) insK.run(id, x.staff_id, x.task.trim());
 
     // その日のシフトをシフト表へ反映（急な休みなど）
     const upShift = d.prepare(
@@ -416,7 +424,7 @@ function sinceDate(date: string, days: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 前回の運転者（便×車両ごと）と直近 2 週間の運転回数 */
+/** 前回の運転者（朝・昼・帰り × 車両ごと）と直近 2 週間の運転回数 */
 export function buildTransportHistory(storeId: number, date: string): TransportHistory {
   const d = db();
   const lastDriver = new Map<string, number>();
@@ -427,12 +435,13 @@ export function buildTransportHistory(storeId: number, date: string): TransportH
     )
     .all(storeId, date) as { run: string; vehicle_id: number; driver_id: number }[];
   for (const r of rows) {
-    const k = `${r.run}|${r.vehicle_id}`;
+    const k = `${driverGroupOf(r.run as RunKind)}|${r.vehicle_id}`;
     if (!lastDriver.has(k)) lastDriver.set(k, r.driver_id);
   }
   const counts = d
     .prepare(
-      `SELECT r.driver_id AS id, COUNT(*) AS n FROM daily_runs r JOIN daily dl ON dl.id = r.daily_id
+      `SELECT r.driver_id AS id, COUNT(DISTINCT dl.date || CASE WHEN r.run LIKE 'noon%' THEN 'noon' ELSE r.run END || r.vehicle_id) AS n
+       FROM daily_runs r JOIN daily dl ON dl.id = r.daily_id
        WHERE dl.store_id = ? AND dl.date < ? AND dl.date >= ? AND r.driver_id IS NOT NULL GROUP BY r.driver_id`,
     )
     .all(storeId, date, sinceDate(date, 14)) as { id: number; n: number }[];

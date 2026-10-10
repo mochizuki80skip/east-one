@@ -171,7 +171,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ store
 
       <Card title="送迎ルート">
         <p className="mb-3 text-xs text-slate-600">
-          利用者ごとにルートと順番を設定すると、その順で車両に乗せます。時刻は便ごとの出発時刻の初期値です（スケジュール画面で変更できます）。
+          利用者ごとにルートと順番を設定すると、その順で車両に乗せます。時刻は便ごとの出発時刻の初期値です（スケジュール画面で変更できます）。昼送車と昼迎車は同じ車両・同じ運転者で回ります。
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border">
@@ -179,9 +179,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ store
               <tr>
                 <th className={th}>ルート名</th>
                 <th className={th}>既定の車両</th>
-                <th className={th}>朝送迎</th>
-                <th className={th}>昼送迎</th>
-                <th className={th}>帰り送迎</th>
+                <th className={th}>朝迎車</th>
+                <th className={th}>昼送車</th>
+                <th className={th}>昼迎車</th>
+                <th className={th}>帰り送車</th>
                 <th className={th}>並び順</th>
                 <th className={th}></th>
               </tr>
@@ -208,7 +209,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ store
                         ))}
                       </select>
                     </td>
-                    {(["morning_time", "noon_time", "evening_time"] as const).map((k) => (
+                    {(["morning_time", "noon_time", "noon_pick_time", "evening_time"] as const).map((k) => (
                       <td key={k} className={td}>
                         <input name={k} form={fid} defaultValue={r?.[k] ?? ""} placeholder="8:10" className={`${input} w-20`} />
                       </td>

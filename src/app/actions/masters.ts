@@ -96,6 +96,7 @@ export async function saveRouteAction(fd: FormData) {
     vehicle_id: optId(fd, "vehicle_id"),
     morning_time: str(fd, "morning_time"),
     noon_time: str(fd, "noon_time"),
+    noon_pick_time: str(fd, "noon_pick_time"),
     evening_time: str(fd, "evening_time"),
     sort_order: num(fd, "sort_order"),
   });

@@ -1,4 +1,4 @@
-import type { RunKind, Session } from "./constants";
+import type { Duty, RunKind, Session } from "./constants";
 
 export type Store = {
   id: number;
@@ -52,7 +52,10 @@ export type Route = {
   name: string;
   vehicle_id: number | null;
   morning_time: string;
+  /** 昼送車の時刻 */
   noon_time: string;
+  /** 昼迎車の時刻 */
+  noon_pick_time: string;
   evening_time: string;
   sort_order: number;
 };
@@ -103,6 +106,9 @@ export type DailyRun = {
 
 export type DailyTraining = { session: Session; client_id: number; slot_time: string; staff_id: number | null };
 
+export type DailyDuty = { session: Session; duty: Duty; staff_id: number | null };
+export type DailyTask = { staff_id: number; task: string };
+
 export type DailyDetail = {
   store_id: number;
   date: string;
@@ -113,6 +119,10 @@ export type DailyDetail = {
   attendance: DailyAttendance[];
   runs: DailyRun[];
   training: DailyTraining[];
+  /** 体操・メディカルケア・FIT の担当 */
+  duties: DailyDuty[];
+  /** スタッフごとの担当業務（空き時間の作業など） */
+  tasks: DailyTask[];
 };
 
 export type MonthlyReport = {

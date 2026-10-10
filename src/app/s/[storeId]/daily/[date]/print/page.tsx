@@ -2,8 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDaily, getStore, listClients, listStaff, listVehicles } from "@/lib/repo";
 import { formatDateJa, isValidDate } from "@/lib/date";
-import { RUNS, shiftWorks, splitList, type RunKind, type Session } from "@/lib/constants";
+import { DUTIES, RUNS, SESSIONS, splitList, type RunKind, type Session } from "@/lib/constants";
+import { freeStaffBlocks, qualificationSummary } from "@/lib/staffing";
 import PrintButton from "@/components/PrintButton";
+
+const TIMETABLE_ROWS = 20;
+const cell = "border border-black px-[3px] align-top";
+const head = "border border-black bg-slate-100 px-[3px] text-center font-bold";
 
 export default async function DailyPrintPage({ params }: { params: Promise<{ storeId: string; date: string }> }) {
   const { storeId, date } = await params;
@@ -11,53 +16,54 @@ export default async function DailyPrintPage({ params }: { params: Promise<{ sto
   const store = getStore(Number(storeId));
   if (!store) notFound();
   const d = getDaily(store.id, date);
-  const staff = new Map(listStaff({ storeId: store.id }).map((s) => [s.id, s]));
+  const staffList = listStaff({ storeId: store.id });
+  const staff = new Map(staffList.map((s) => [s.id, s]));
   const clients = new Map(listClients(store.id, { includeEnded: true }).map((c) => [c.id, c]));
   const vehicles = new Map(listVehicles(store.id).map((v) => [v.id, v]));
-  const sn = (id: number | null) => (id != null ? (staff.get(id)?.name ?? "") : "");
+  const sn = (id: number | null | undefined) => (id != null ? (staff.get(id)?.name ?? "") : "");
   const cn = (id: number) => clients.get(id)?.name ?? "";
-
-  const onDuty = d.shifts
-    .filter((s) => {
-      const w = shiftWorks(s.code);
-      return w.am || w.pm;
-    })
-    .map((s) => ({ name: sn(s.staff_id), code: s.code }));
+  const slots = { am: splitList(store.am_slots), pm: splitList(store.pm_slots) };
+  const codeOf = new Map(d.shifts.map((s) => [s.staff_id, s.code]));
+  const lite = staffList.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills) }));
+  const qual = qualificationSummary(
+    lite.filter((s) => d.shifts.some((x) => x.staff_id === s.id)),
+    (id) => codeOf.get(id),
+  );
+  const blocks = freeStaffBlocks({ staff: lite, codeOf: (id) => codeOf.get(id), slots, runs: d.runs, training: d.training, duties: d.duties });
   const absent = d.attendance.filter((a) => a.status === "absent");
+  const present = (s: Session) => d.attendance.filter((a) => a.session === s && a.status === "present").length;
+  const tasks = d.tasks.filter((t) => t.task.trim());
 
   const runTable = (run: RunKind) => {
+    const info = RUNS.find((r) => r.key === run)!;
     const runs = d.runs.filter((r) => r.run === run);
-    const label = RUNS.find((r) => r.key === run)!.label;
     return (
-      <div>
-        <div className="text-[10px] font-bold">{label}</div>
-        <table className="w-full border-collapse text-[10px]">
+      <div className="mb-[2mm]">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[11px] font-bold">{info.label}</span>
+          <span className="text-[8px] text-slate-600">{info.note}</span>
+        </div>
+        <table className="w-full border-collapse text-[9px] leading-tight">
           <tbody>
-            {runs.map((r, i) => {
-              const names = (dir: "pickup" | "dropoff") =>
-                r.riders
-                  .filter((x) => x.direction === dir)
-                  .sort((a, b) => a.seq - b.seq)
-                  .map((x) => cn(x.client_id));
-              const drop = names("dropoff");
-              const pick = names("pickup");
-              return (
-                <tr key={i}>
-                  <td className="w-16 border border-black px-1">{r.vehicle_id ? vehicles.get(r.vehicle_id)?.name : "未定"}</td>
-                  <td className="w-12 border border-black px-1">{sn(r.driver_id)}</td>
-                  <td className="w-12 border border-black px-1 text-[9px]">{r.escort_id ? `添:${sn(r.escort_id)}` : ""}</td>
-                  <td className="border border-black px-1">
-                    <span className="mr-1 font-semibold">{r.depart_time}</span>
-                    {drop.join("　")}
-                    {drop.length > 0 && pick.length > 0 && " → "}
-                    {pick.join("　")}
-                  </td>
-                </tr>
-              );
-            })}
+            {runs.map((r, i) => (
+              <tr key={i}>
+                <td className={`${cell} w-[15mm] font-semibold`}>{r.vehicle_id ? vehicles.get(r.vehicle_id)?.name : "未定"}</td>
+                <td className={`${cell} w-[13mm]`}>
+                  {sn(r.driver_id)}
+                  {r.escort_id && <div className="text-[8px]">添:{sn(r.escort_id)}</div>}
+                </td>
+                <td className={`${cell} w-[9mm] font-bold`}>{r.depart_time}</td>
+                <td className={cell}>
+                  {[...r.riders]
+                    .sort((a, b) => a.seq - b.seq)
+                    .map((x) => cn(x.client_id))
+                    .join("　")}
+                </td>
+              </tr>
+            ))}
             {runs.length === 0 && (
               <tr>
-                <td className="border border-black px-1 text-slate-400">なし</td>
+                <td className={`${cell} text-slate-400`}>なし</td>
               </tr>
             )}
           </tbody>
@@ -67,63 +73,97 @@ export default async function DailyPrintPage({ params }: { params: Promise<{ sto
   };
 
   const timetable = (session: Session) => {
-    const slots = splitList(session === "am" ? store.am_slots : store.pm_slots);
-    const list = d.training.filter((t) => t.session === session);
-    const cols = [...slots, ...(list.some((t) => !t.slot_time) ? [""] : [])];
+    const idx = (t: string) => {
+      const i = slots[session].indexOf(t);
+      return i < 0 ? 999 : i;
+    };
+    const list = d.training.filter((t) => t.session === session).sort((a, b) => idx(a.slot_time) - idx(b.slot_time));
+    const rows = Math.max(TIMETABLE_ROWS, list.length);
     return (
       <div>
-        <div className="text-[10px] font-bold">{session === "am" ? "午前" : "午後"} 個別機能訓練・整体</div>
-        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(cols.length, 1)}, minmax(0, 1fr))` }}>
-          {cols.map((slot) => (
-            <div key={slot || "none"}>
-              <div className="border-b border-black text-center text-[10px] font-semibold">{slot || "未定"}</div>
-              <table className="w-full border-collapse text-[10px]">
-                <tbody>
-                  {list
-                    .filter((t) => t.slot_time === slot)
-                    .map((t) => (
-                      <tr key={t.client_id}>
-                        <td className="border border-black px-0.5">{cn(t.client_id)}</td>
-                        <td className="w-10 border border-black px-0.5">{sn(t.staff_id)}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+        <div className="text-[11px] font-bold">
+          {session === "am" ? "午前" : "午後"} 整体・個別機能訓練 <span className="text-[9px] font-normal">（{list.length}名）</span>
         </div>
+        <table className="w-full border-collapse text-[10px]">
+          <thead>
+            <tr>
+              <th className={`${head} w-[6mm]`}>No</th>
+              <th className={`${head} w-[11mm]`}>時刻</th>
+              <th className={head}>利用者</th>
+              <th className={`${head} w-[15mm]`}>担当</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }).map((_, i) => {
+              const t = list[i];
+              const newSlot = t && (i === 0 || list[i - 1].slot_time !== t.slot_time);
+              return (
+                <tr key={i} className="h-[6.2mm]" style={newSlot && i > 0 ? { borderTop: "2px solid black" } : undefined}>
+                  <td className={`${cell} text-center text-[8px] align-middle`}>{i + 1}</td>
+                  <td className={`${cell} text-center align-middle font-semibold`}>{t ? (newSlot ? t.slot_time || "未定" : "〃") : ""}</td>
+                  <td className={`${cell} align-middle`}>{t ? cn(t.client_id) : ""}</td>
+                  <td className={`${cell} align-middle`}>{t ? sn(t.staff_id) : ""}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
   };
 
   return (
     <div>
-      <div className="no-print mb-3 flex items-center gap-3">
+      <div className="no-print mb-3 flex flex-wrap items-center gap-3">
         <Link href={`/s/${store.id}/daily/${date}`} className="text-sm text-blue-700 underline">
           ← 編集に戻る
         </Link>
         <PrintButton />
-        <span className="text-xs text-slate-500">印刷画面で「送信先: PDFに保存」を選ぶとPDFになります（用紙: A4 横）。</span>
+        <span className="text-xs text-slate-500">印刷画面で用紙「A4 横」、余白「なし」を選んでください。「PDFに保存」でPDFになります。</span>
         {!d.saved && <span className="text-xs text-amber-700">この日はまだ保存されていません。</span>}
       </div>
-      <div className="sheet-landscape flex flex-col gap-2 text-black">
-        <div className="grid grid-cols-[150px_1fr_150px_150px] gap-2">
-          <div>
-            <div className="border border-black text-center text-lg font-bold">{formatDateJa(date)}</div>
-            <div className="border border-t-0 border-black text-center text-[10px]">出勤スタッフ</div>
-            <div className="min-h-12 border border-t-0 border-black p-1 text-[10px] leading-tight">
-              {onDuty.map((s) => (
-                <span key={s.name} className="mr-1 inline-block">
-                  {s.name}
-                  {s.code !== "〇" && <span className="text-[8px]">({s.code})</span>}
-                </span>
-              ))}
+      <div className="sheet-landscape flex flex-col gap-[2mm] text-black">
+        {/* 上段 */}
+        <div className="grid grid-cols-[40mm_1fr_46mm_52mm] gap-[2mm]">
+          <div className="flex flex-col border-2 border-black">
+            <div className="border-b border-black py-[1mm] text-center text-[18px] font-bold leading-tight">{formatDateJa(date)}</div>
+            <div className="flex-1 px-[2mm] py-[1mm] text-[10px] leading-snug">
+              <div>
+                利用 午前 <b>{present("am")}</b>名 / 午後 <b>{present("pm")}</b>名
+              </div>
+              <div>
+                出勤 午前 <b>{qual.am}</b>名 / 午後 <b>{qual.pm}</b>名
+              </div>
+              <div className="mt-[1mm] text-[8px] text-slate-600">{store.display_name || store.name}</div>
             </div>
           </div>
-          {runTable("morning")}
-          <div>
-            <div className="border border-black text-center text-[10px] font-bold">利用者様休み</div>
-            <div className="min-h-16 border border-t-0 border-black p-1 text-[10px] leading-tight">
+          <table className="w-full border-collapse text-[9px] leading-tight">
+            <thead>
+              <tr>
+                <th className={`${head} w-[24mm]`}>出勤状況</th>
+                <th className={head}>午前</th>
+                <th className={head}>午後</th>
+              </tr>
+            </thead>
+            <tbody>
+              {qual.rows.map((r) => (
+                <tr key={r.qualification}>
+                  <td className={`${cell} font-semibold`}>{r.qualification}</td>
+                  <td className={cell}>
+                    <b className="mr-1">{r.am.length}</b>
+                    {r.am.join(" ")}
+                  </td>
+                  <td className={cell}>
+                    <b className="mr-1">{r.pm.length}</b>
+                    {r.pm.join(" ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex flex-col border border-black">
+            <div className={`${head} border-0 border-b`}>利用者様休み（{absent.length}）</div>
+            <div className="flex-1 p-[1mm] text-[9px] leading-tight">
               {absent.map((a) => (
                 <div key={`${a.client_id}${a.session}`}>
                   {cn(a.client_id)}さん<span className="text-[8px]">（{a.session === "am" ? "前" : "後"}・{a.reason}）</span>
@@ -131,20 +171,69 @@ export default async function DailyPrintPage({ params }: { params: Promise<{ sto
               ))}
             </div>
           </div>
-          <div>
-            <div className="border border-black text-center text-[10px] font-bold">特記事項</div>
-            <div className="min-h-16 whitespace-pre-wrap border border-t-0 border-black p-1 text-[10px] leading-tight">{d.memo}</div>
+          <div className="flex flex-col border border-black">
+            <div className={`${head} border-0 border-b`}>特記事項</div>
+            <div className="flex-1 whitespace-pre-wrap p-[1mm] text-[9px] leading-tight">{d.memo}</div>
           </div>
         </div>
-        <div className="grid flex-1 grid-cols-[1fr_300px] gap-2 border-t border-black pt-1">
-          {timetable("am")}
-          {runTable("noon")}
+
+        {/* 下段 */}
+        <div className="grid flex-1 grid-cols-[92mm_1fr_60mm] gap-[2mm] border-t-2 border-black pt-[1.5mm]">
+          <div>{RUNS.map((r) => runTable(r.key))}</div>
+          <div className="grid grid-cols-2 gap-[2mm]">
+            {timetable("am")}
+            {timetable("pm")}
+          </div>
+          <div className="flex flex-col gap-[2mm]">
+            <table className="w-full border-collapse text-[9px] leading-tight">
+              <thead>
+                <tr>
+                  <th className={head}>担当</th>
+                  {SESSIONS.map((s) => (
+                    <th key={s.key} className={head}>
+                      {s.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {DUTIES.map((duty) => (
+                  <tr key={duty}>
+                    <td className={`${cell} font-semibold`}>{duty}</td>
+                    {SESSIONS.map((s) => (
+                      <td key={s.key} className={cell}>
+                        {sn(d.duties.find((x) => x.session === s.key && x.duty === duty)?.staff_id)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div>
+              <div className="text-[10px] font-bold">空いているスタッフ</div>
+              <table className="w-full border-collapse text-[8px] leading-tight">
+                <tbody>
+                  {blocks.map((b) => (
+                    <tr key={b.key}>
+                      <td className={`${cell} w-[17mm] whitespace-nowrap`}>{b.label.replace("体操・メディカルケア・FIT", "体操等")}</td>
+                      <td className={cell}>{b.free.map((id) => sn(id)).join(" ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold">担当業務</div>
+              <div className="min-h-[15mm] border border-black p-[1mm] text-[9px] leading-tight">
+                {tasks.map((t) => (
+                  <div key={t.staff_id}>
+                    <b>{sn(t.staff_id)}</b>：{t.task}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="grid flex-1 grid-cols-[1fr_300px] gap-2 border-t border-black pt-1">
-          {timetable("pm")}
-          {runTable("evening")}
-        </div>
-        <div className="text-right text-[8px] text-slate-500">{store.display_name || store.name}</div>
       </div>
     </div>
   );

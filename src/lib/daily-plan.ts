@@ -2,6 +2,7 @@ import { DRIVE_SKILL, shiftWorks, splitList, TRAINING_SKILLS, type RunKind, type
 import { buildTrainingHistory, buildTransportHistory, getStore, listClients, listRoutes, listStaff, listVehicles } from "./repo";
 import { planTransport, type TRider } from "./transport";
 import { planTraining } from "./timetable";
+import { planDuties } from "./staffing";
 import type { DailyDetail, DailyRun, DailyTraining } from "./types";
 
 /** 日々のスケジュールの自動作成（送迎＋機能訓練・整体の時間割）。DB には保存しない。 */
@@ -46,11 +47,12 @@ export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warni
       id: r.id,
       vehicleId: r.vehicle_id,
       sortOrder: r.sort_order,
-      times: { morning: r.morning_time, noon: r.noon_time, evening: r.evening_time },
+      times: { morning: r.morning_time, noon_drop: r.noon_time, noon_pick: r.noon_pick_time, evening: r.evening_time },
     })),
     drivers: {
       morning: driversFor((w) => w.am),
-      noon: driversFor((w) => w.am || w.pm),
+      noon_drop: driversFor((w) => w.am),
+      noon_pick: driversFor((w) => w.pm),
       evening: driversFor((w) => w.pm),
     },
     history: buildTransportHistory(storeId, detail.date),
@@ -91,7 +93,7 @@ export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warni
   const training: DailyTraining[] = [];
   for (const session of ["am", "pm"] as const) {
     const ids = (session === "am" ? amIds : pmIds).filter((id) => clients.get(id)!.needs_training);
-    const order = arrivalOrder(session === "am" ? "morning" : "noon");
+    const order = arrivalOrder(session === "am" ? "morning" : "noon_pick");
     ids.sort((a, b) => (order.get(a) ?? 1e6) - (order.get(b) ?? 1e6) || a - b);
     const trainers = staff
       .filter((s) => skills(s.id).some((k) => TRAINING_SKILLS.includes(k as (typeof TRAINING_SKILLS)[number])) && works(s.id)[session])
@@ -106,5 +108,10 @@ export function autoPlanDaily(detail: DailyDetail): { detail: DailyDetail; warni
     }
   }
 
-  return { detail: { ...detail, runs, training }, warnings: [...new Set(warnings)] };
+  // ---- 体操・メディカルケア・FIT ----
+  const staffLite = staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), sortOrder: s.sort_order }));
+  const d = planDuties({ staff: staffLite, codeOf: (id) => codeOf.get(id), runs, training });
+  warnings.push(...d.warnings);
+
+  return { detail: { ...detail, runs, training, duties: d.duties }, warnings: [...new Set(warnings)] };
 }
