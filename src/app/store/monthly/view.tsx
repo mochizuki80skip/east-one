@@ -76,7 +76,7 @@ export default function MonthlyView() {
                 return (
                   <tr key={c.id}>
                     <td className={td}>
-                      <Link href={links.monthlyEdit(sid, ym, c.id)} className="font-medium text-blue-700 hover:underline">
+                      <Link href={links.monthlyEdit(sid, ym, c.id)} className="font-medium text-brand-700 hover:underline">
                         {c.name}
                       </Link>
                     </td>

@@ -20,7 +20,7 @@ export default function StoreNav({ storeId }: { storeId: number }) {
       {items.map((i) => {
         const active = path.startsWith(i.match);
         return (
-          <Link key={i.match} href={i.href} className={`rounded px-3 py-1 ${active ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-200"}`}>
+          <Link key={i.match} href={i.href} className={`rounded px-3 py-1 ${active ? "bg-brand-600 text-white" : "text-slate-700 hover:bg-brand-100"}`}>
             {i.label}
           </Link>
         );

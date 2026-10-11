@@ -114,7 +114,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
     <div className="space-y-3">
       <div className="no-print sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded border bg-white p-2 shadow-sm">
         <div className="flex overflow-hidden rounded border">
-          <button onClick={() => setMode("shift")} className={`px-3 py-1.5 text-sm ${mode === "shift" ? "bg-slate-800 text-white" : "bg-white"}`}>
+          <button onClick={() => setMode("shift")} className={`px-3 py-1.5 text-sm ${mode === "shift" ? "bg-brand-600 text-white" : "bg-white"}`}>
             シフト入力
           </button>
           <button onClick={() => setMode("request")} className={`px-3 py-1.5 text-sm ${mode === "request" ? "bg-amber-500 text-white" : "bg-white"}`}>

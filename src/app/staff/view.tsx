@@ -41,7 +41,7 @@ export default function StaffView() {
             {s.name}
           </Link>
         ))}
-        <Link href={links.staff(storeId || undefined, !all)} className="ml-3 text-blue-700 underline">
+        <Link href={links.staff(storeId || undefined, !all)} className="ml-3 text-brand-700 underline">
           {all ? "在籍者のみ表示" : "休職・退職者も表示"}
         </Link>
       </div>
@@ -62,7 +62,7 @@ export default function StaffView() {
             {staff.map((s) => (
               <tr key={s.id} className={s.status === "在籍" ? "" : "text-slate-400"}>
                 <td className={td}>
-                  <Link href={links.staffEdit(s.id)} className="font-medium text-blue-700 hover:underline">
+                  <Link href={links.staffEdit(s.id)} className="font-medium text-brand-700 hover:underline">
                     {s.name}
                   </Link>
                 </td>

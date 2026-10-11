@@ -63,7 +63,7 @@ export default function WeeklyView() {
                         <Link href={links.clientEdit(sid, c.id, back)} className="flex-1 truncate hover:underline">
                           {c.name}
                         </Link>
-                        {c.new_flag && <span className="rounded bg-pink-100 px-1 text-pink-700">{c.new_flag.slice(0, 1)}</span>}
+                        {c.new_flag && <span className="rounded bg-brand-100 px-1 text-brand-800">{c.new_flag.slice(0, 1)}</span>}
                         <span className="text-slate-500">{c.care_level.replace("要支援", "支").replace("要介護", "介").replace("事業対象者", "事対")}</span>
                         <span className="text-slate-500">{c.gender}</span>
                         <span className="w-5 text-right text-slate-500">{displayAge(c.birth_date, c.age) ?? ""}</span>

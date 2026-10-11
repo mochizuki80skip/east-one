@@ -64,10 +64,10 @@ export default function ClientsView() {
               return (
                 <tr key={c.id} className={c.status === "利用中" ? "" : "text-slate-400"}>
                   <td className={td}>
-                    <Link href={links.clientEdit(sid, c.id)} className="font-medium text-blue-700 hover:underline">
+                    <Link href={links.clientEdit(sid, c.id)} className="font-medium text-brand-700 hover:underline">
                       {c.name}
                     </Link>
-                    {c.new_flag && <span className="ml-1 rounded bg-pink-100 px-1 text-xs text-pink-700">{c.new_flag}</span>}
+                    {c.new_flag && <span className="ml-1 rounded bg-brand-100 px-1 text-xs text-brand-800">{c.new_flag}</span>}
                   </td>
                   <td className={td}>{c.care_level}</td>
                   <td className={td}>{c.gender}</td>

@@ -315,7 +315,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
             const w = works(s.id);
             const on = w.am || w.pm;
             return (
-              <div key={s.id} className={`flex items-center gap-2 rounded border px-2 py-1 ${on ? "border-blue-300 bg-blue-50" : "bg-slate-50 text-slate-500"}`}>
+              <div key={s.id} className={`flex items-center gap-2 rounded border px-2 py-1 ${on ? "border-brand-300 bg-brand-50" : "bg-slate-50 text-slate-500"}`}>
                 <div className="flex-1">
                   <div className="text-sm font-medium">{s.name}</div>
                   <div className="text-[11px] text-slate-500">

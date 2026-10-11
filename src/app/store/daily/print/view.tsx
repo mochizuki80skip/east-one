@@ -124,7 +124,7 @@ export default function DailyPrintView() {
   return (
     <div>
       <div className="no-print mb-3 flex flex-wrap items-center gap-3">
-        <Link href={links.daily(store.id, date)} className="text-sm text-blue-700 underline">
+        <Link href={links.daily(store.id, date)} className="text-sm text-brand-700 underline">
           ← 編集に戻る
         </Link>
         <PrintButton />

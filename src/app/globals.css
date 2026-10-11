@@ -1,8 +1,31 @@
 @import "tailwindcss";
 
+/*
+ * 配色はロゴ（機能訓練施設 East-one）に合わせる。
+ *  brand-500 = ロゴの背景ピンク #D24F93
+ *  plum      = ロゴの鼻（ハート）のプラム色
+ * 白い文字を載せるボタンは、読みやすさのため brand-600 以上を使う（白とのコントラスト 4.5 以上）。
+ */
+@theme {
+  --color-brand-50: #fdf2f8;
+  --color-brand-100: #fbe4f0;
+  --color-brand-200: #f6c7df;
+  --color-brand-300: #ee9fc7;
+  --color-brand-400: #e174ad;
+  --color-brand-500: #d24f93;
+  --color-brand-600: #b83a7b;
+  --color-brand-700: #992f66;
+  --color-brand-800: #7d2954;
+  --color-brand-900: #642343;
+  --color-plum-600: #8a3d64;
+  --color-plum-700: #74314f;
+  --color-plum-800: #5e2840;
+  --color-cheek: #f9cacd;
+}
+
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #fbf7f9;
+  --foreground: #2b2a2a;
 }
 
 @theme inline {
@@ -14,6 +37,20 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif;
+}
+
+/* 入力欄にカーソルが入ったときの枠をブランド色に */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-brand-400);
+  outline-offset: 0;
+  border-color: var(--color-brand-400);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
 }
 
 @media print {

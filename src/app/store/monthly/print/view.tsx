@@ -35,14 +35,30 @@ function paginate(entries: Entry[]): Entry[][] {
   return pages.length ? pages : [[]];
 }
 
-function Sheet({ store, cm, ym, entries, vacancy }: { store: Store; cm: CareManager | null; ym: string; entries: Entry[]; vacancy: Map<string, number> }) {
+function Sheet({
+  store,
+  cm,
+  ym,
+  entries,
+  vacancy,
+}: {
+  store: Store;
+  cm: CareManager | null;
+  ym: string;
+  entries: Entry[];
+  vacancy: Map<string, number>;
+}) {
   const used = entries.reduce((n, e) => n + e.lines, 0);
   const closed = splitList(store.closed_weekdays).map(Number);
   const days = OPEN_WEEKDAY_ORDER.filter((w) => !closed.includes(w));
   return (
     <div className="sheet-landscape flex flex-col text-black">
       <div className="flex items-end justify-between">
-        <h1 className="text-[30px] font-extrabold tracking-wide text-pink-500">機能訓練型デイサービス{store.display_name || store.name}</h1>
+        <h1 className="flex items-center gap-3 text-[30px] font-extrabold tracking-wide text-brand-500">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 印刷用。最適化不要 */}
+          <img src="/brand/mark.png" alt="" className="h-[14mm] w-[14mm]" />
+          機能訓練型デイサービス{store.display_name || store.name}
+        </h1>
         <div className="pb-1 text-right text-[12px]">
           {cm && (
             <div>
@@ -54,7 +70,14 @@ function Sheet({ store, cm, ym, entries, vacancy }: { store: Store; cm: CareMana
       </div>
       <div className="mt-2 flex-1">
         {entries.map((e) => (
-          <div key={e.client.id} className="border-b border-amber-200 text-[13px]" style={{ lineHeight: "26px", backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 25px, #fde68a 25px, #fde68a 26px)" }}>
+          <div
+            key={e.client.id}
+            className="border-b border-amber-200 text-[13px]"
+            style={{
+              lineHeight: "26px",
+              backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 25px, #fde68a 25px, #fde68a 26px)",
+            }}
+          >
             <span className="mr-3 font-semibold">{e.client.name}様</span>
             {e.body || <span className="text-slate-400">（未作成）</span>}
           </div>
@@ -80,7 +103,9 @@ function Sheet({ store, cm, ym, entries, vacancy }: { store: Store; cm: CareMana
           <tbody>
             {SESSIONS.map((s, i) => (
               <tr key={s.key}>
-                <td className="border border-black text-[12px] font-semibold">{i === 0 ? store.phone : store.contact_name ? `${store.contact_name}まで` : ""}</td>
+                <td className="border border-black text-[12px] font-semibold">
+                  {i === 0 ? store.phone : store.contact_name ? `${store.contact_name}まで` : ""}
+                </td>
                 <td className="border border-black text-[18px] font-bold">{s.label}</td>
                 {days.map((w) => {
                   const cap = s.key === "am" ? store.capacity_am : store.capacity_pm;
@@ -110,7 +135,10 @@ function Sheet({ store, cm, ym, entries, vacancy }: { store: Store; cm: CareMana
 
 export default function MonthlyPrintView() {
   const { store: sid, ym, cm: cmParam } = useQuery();
-  const { data, error } = useLoad(async () => Promise.all([getStore(sid), listMonthlyReports(ym), listClientsWithSlots(sid), listCareManagers()]), [sid, ym]);
+  const { data, error } = useLoad(
+    async () => Promise.all([getStore(sid), listMonthlyReports(ym), listClientsWithSlots(sid), listCareManagers()]),
+    [sid, ym],
+  );
   if (!data) return <Loading error={error} />;
   const [store, reportList, clientList, cmList] = data;
   if (!store) return <Notice>店舗が見つかりません。</Notice>;
@@ -135,15 +163,19 @@ export default function MonthlyPrintView() {
   return (
     <div>
       <div className="no-print mb-3 flex flex-wrap items-center gap-3">
-        <Link href={links.monthly(store.id, ym)} className="text-sm text-blue-700 underline">
+        <Link href={links.monthly(store.id, ym)} className="text-sm text-brand-700 underline">
           ← 月次報告に戻る
         </Link>
         <PrintButton label="📄 PDFで保存 / 印刷" />
-        <span className="text-xs text-slate-500">印刷画面で「送信先: PDFに保存」、用紙「A4 横」、余白「なし」を選んでください。ケアマネごとに改ページされます。</span>
+        <span className="text-xs text-slate-500">
+          印刷画面で「送信先: PDFに保存」、用紙「A4 横」、余白「なし」を選んでください。ケアマネごとに改ページされます。
+        </span>
         {missing > 0 && <span className="text-xs text-amber-700">報告文が未作成の方が {missing} 名います。</span>}
       </div>
       {groups.length === 0 && <p className="text-sm">出力できる利用者がいません。利用者に担当ケアマネを設定してください。</p>}
-      {groups.flatMap((g) => paginate(g.entries).map((page, i) => <Sheet key={`${g.cm.id}-${i}`} store={store} cm={g.cm} ym={ym} entries={page} vacancy={vacancy} />))}
+      {groups.flatMap((g) =>
+        paginate(g.entries).map((page, i) => <Sheet key={`${g.cm.id}-${i}`} store={store} cm={g.cm} ym={ym} entries={page} vacancy={vacancy} />),
+      )}
     </div>
   );
 }

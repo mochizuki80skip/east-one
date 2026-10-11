@@ -12,7 +12,7 @@ export default function LogoutButton() {
         window.dispatchEvent(new Event("eo-auth-required"));
         router.push("/");
       }}
-      className="text-xs text-slate-300 hover:text-white hover:underline"
+      className="rounded border border-white/50 px-2 py-0.5 text-xs text-white hover:bg-white/15"
     >
       ログアウト
     </button>
