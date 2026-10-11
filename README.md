@@ -38,7 +38,7 @@
 | データ保存・ログイン・AI 文章作成 | PHP 8.2 以上（Claude は公式 PHP SDK） | `public_html/api/` |
 | データ | MySQL（動作確認用に SQLite も可） | サーバーパネルで作成 |
 
-公開アドレスは https://eastone-data.hachimaru-80skip.com/ です（hachimaru-80skip.com のサブドメイン）。設置手順は [docs/deploy-xserver.md](docs/deploy-xserver.md) にあります。
+公開アドレスは https://eastone-data.hachimaru-80skip.com/ です（hachimaru-80skip.com のサブドメイン）。設置手順は [docs/deploy-xserver.md](docs/deploy-xserver.md)、どこに何を置くかは [docs/upload-guide.md](docs/upload-guide.md) にあります。
 
 ## 開発・確認
 
