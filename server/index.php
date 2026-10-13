@@ -7,7 +7,50 @@
  */
 declare(strict_types=1);
 
+// ---- どんなエラーでも JSON で原因を返す（画面に「サーバーの応答が正しくありません」とだけ出るのを防ぐ） ----
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+ob_start();
+
+function eo_emergency_json(int $status, string $message): void
+{
+    while (ob_get_level() > 0) ob_end_clean();
+    if (!headers_sent()) {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+    }
+    // サーバー上のフォルダの場所は表示しない
+    $message = preg_replace('#/(?:[^\s\'"/]+/)+#', '', $message) ?? $message;
+    echo json_encode(['error' => $message], JSON_UNESCAPED_UNICODE);
+}
+
+set_exception_handler(function (Throwable $e): void {
+    error_log('[east-one] ' . $e);
+    eo_emergency_json(500, 'サーバー内部のエラー: ' . $e->getMessage() . '（' . basename($e->getFile()) . ':' . $e->getLine() . '）');
+});
+
+register_shutdown_function(function (): void {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        error_log('[east-one] ' . $e['message']);
+        eo_emergency_json(500, 'サーバー内部のエラー: ' . $e['message'] . '（' . basename($e['file']) . ':' . $e['line'] . '）');
+    }
+});
+
+foreach (['lib.php', 'report.php'] as $f) {
+    if (!is_file(__DIR__ . '/' . $f)) {
+        eo_emergency_json(500, "api フォルダに {$f} がありません。アップロードし直してください。");
+        exit;
+    }
+}
+
 require __DIR__ . '/lib.php';
+
+// 状態の確認（ログイン不要。パスワードなどの中身は返さない）
+if (($_GET['action'] ?? '') === 'check') {
+    json_out(server_check());
+}
 
 start_session();
 $action = $_GET['action'] ?? '';

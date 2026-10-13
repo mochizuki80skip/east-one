@@ -24,6 +24,8 @@ function config(): array
 
 function json_out(array $data, int $status = 200): never
 {
+    // 途中で出た警告などを捨てて、JSON だけを返す
+    while (ob_get_level() > 0) ob_end_clean();
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
@@ -64,12 +66,68 @@ function db(): PDO
             $pdo = new PDO($dsn, $c['user'] ?? '', $c['pass'] ?? '');
         }
     } catch (PDOException $e) {
-        fail(500, 'データベースに接続できません。config.php の設定を確認してください。');
+        fail(500, 'データベースに接続できません（' . db_error_hint($e) . '）。config.php の設定を確認してください。');
     }
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     migrate($pdo);
     return $pdo;
+}
+
+/** 接続エラーを、原因が分かる言葉にする（ユーザー名などの中身は出さない） */
+function db_error_hint(PDOException $e): string
+{
+    $m = $e->getMessage();
+    return match (true) {
+        str_contains($m, '[1045]') => 'ユーザー名かパスワードが違います',
+        str_contains($m, '[1044]') => 'このユーザーにデータベースのアクセス権がありません',
+        str_contains($m, '[1049]') => 'データベース名が見つかりません',
+        str_contains($m, '[2002]'), str_contains($m, '[2005]') => 'ホスト名が違います',
+        str_contains($m, 'could not find driver') => 'PHP に MySQL 用の機能がありません',
+        default => 'コード ' . (string)$e->getCode(),
+    };
+}
+
+/** サーバーの状態（設定ファイル・PHP・データベース・AI 用ライブラリ）を確認する */
+function server_check(): array
+{
+    $file = __DIR__ . '/config.php';
+    $out = [
+        'php' => PHP_VERSION,
+        'php_ok' => version_compare(PHP_VERSION, '8.1.0', '>='),
+        'config' => is_file($file),
+        'password_set' => false,
+        'database' => '未確認',
+        'ai_library' => is_file(__DIR__ . '/vendor/autoload.php'),
+        'ai_key' => false,
+        'session' => is_writable(session_save_path() ?: sys_get_temp_dir()),
+    ];
+    if (!$out['config']) return $out;
+    try {
+        $c = require $file;
+    } catch (Throwable $e) {
+        $out['config_error'] = 'config.php の書き方に誤りがあります（' . $e->getLine() . '行目付近）';
+        return $out;
+    }
+    if (!is_array($c)) {
+        $out['config_error'] = 'config.php の書き方に誤りがあります';
+        return $out;
+    }
+    $pw = (string)($c['password'] ?? '');
+    $out['password_set'] = $pw !== '' && $pw !== 'ここにパスワードを入れる';
+    $out['ai_key'] = trim((string)($c['anthropic_api_key'] ?? '')) !== '';
+    $d = $c['db'] ?? [];
+    try {
+        if (($d['driver'] ?? '') === 'sqlite') {
+            new PDO('sqlite:' . $d['path']);
+        } else {
+            new PDO(sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $d['host'] ?? 'localhost', $d['name'] ?? ''), $d['user'] ?? '', $d['pass'] ?? '');
+        }
+        $out['database'] = '接続できます';
+    } catch (PDOException $e) {
+        $out['database'] = '接続できません（' . db_error_hint($e) . '）';
+    }
+    return $out;
 }
 
 function is_mysql(PDO $pdo): bool

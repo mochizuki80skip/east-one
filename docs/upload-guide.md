@@ -102,7 +102,7 @@ eastone-data/api/
    'anthropic_api_key' => '',              // AI を使うときだけキーを入れる（空欄のままで可）
    ```
 
-3. 文字コード **UTF-8** で、名前を **`config.php`** にして保存します。
+3. 文字コード **UTF-8** で、名前を **`config.php`** にして保存します（メモ帳なら「UTF-8」を選ぶ。「UTF-8 (BOM 付き)」でも動きますが、BOM なしがおすすめです）。
 4. `eastone-data/api/` にアップロードします。
 
 注意点:
@@ -123,6 +123,8 @@ eastone-data/api/
 | https://eastone-data.hachimaru-80skip.com/ | パスワード入力の画面 | 崩れた画面 → `_next` が無い（2 を確認） |
 
 最後のアドレスで `config.php` に書いたパスワードを入れ、「店舗一覧」が出れば完了です。
+
+ログインできないときは、ログイン画面の「ログインできないときは、サーバーの状態を確認」を押してください。PHP のバージョン・config.php・パスワード・データベースの接続などを ✔ / ✖ で表示します。同じ内容は https://eastone-data.hachimaru-80skip.com/api/index.php?action=check でも確認できます（パスワードなどの中身は表示されません）。
 
 ログイン後に「データベースに接続できません」と出た場合は、`config.php` の MySQL 情報（ホスト名・データベース名・ユーザー名・パスワード）と、ユーザーのアクセス権を確認してください。
 
