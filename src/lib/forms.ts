@@ -162,10 +162,11 @@ export async function submitClient(fd: FormData) {
   });
 }
 
-export async function importClientsTsv(storeId: number, tsv: string) {
-  const { clients, skipped } = parseWeeklyList(tsv);
+export async function importClientsTsv(storeId: number, tsv: string, session?: Session) {
+  const { clients, skipped, hint } = parseWeeklyList(tsv, session);
+  if (clients.length === 0) return { found: 0, skipped, created: 0, updated: 0, hint };
   const r = await importClients(storeId, clients);
-  return { found: clients.length, skipped, ...r };
+  return { found: clients.length, skipped, hint, ...r };
 }
 
 export async function importStaffTsv(storeId: number, tsv: string) {
