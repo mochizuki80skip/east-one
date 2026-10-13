@@ -8,6 +8,7 @@
  *  - 各スタッフの週の勤務日数（days_per_week）を守る。常勤で日数を満たすには今日入る必要がある人は必ず入れる
  *  - 看護師・機能訓練指導員の最低人数を先に満たし、必要人数まで勤務日数の残りが多い人から入れる
  *  - 必要人数を満たせない日は警告を出す（勤務日数を超えて入れることはしない）
+ *  - 出勤日には、その人のいつもの勤務時間（workCode）を入れる
  */
 import { shiftWeight, shiftWorks } from "./constants";
 
@@ -17,6 +18,8 @@ export type ShiftStaff = {
   days_per_week: number;
   available_weekdays: number[];
   sort_order: number;
+  /** 出勤日に入れる記号（いつもの勤務時間。例: 9:00-13:30）。無ければ「〇」 */
+  workCode?: string;
 };
 
 export type ShiftRules = {
@@ -150,7 +153,7 @@ export function autoShift(input: ShiftInput): { grid: Map<string, string>; check
       for (const s of staff) {
         if (!free(s)) continue;
         if (chosen.has(s.id)) {
-          grid.set(key(s.id, d), "〇");
+          grid.set(key(s.id, d), s.workCode || "〇");
           quota.set(s.id, (quota.get(s.id) ?? 0) - 1);
         } else {
           grid.set(key(s.id, d), "休");

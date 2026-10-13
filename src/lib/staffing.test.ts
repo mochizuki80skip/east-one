@@ -58,3 +58,18 @@ test("体操等の担当: 3つを持てる人を優先し、昼の運転者は�
   assert.equal(am.find((d) => d.duty === "体操")!.staff_id, 1);
   assert.ok(am.every((d) => d.staff_id !== 2));
 });
+
+import { makeTimeRange, shiftLabel, shiftWeight, shiftWorks as works } from "./constants";
+
+test("勤務時間のパターン: 時間から午前・午後の勤務を判定する", () => {
+  assert.deepEqual(works("8:30-17:30"), { am: true, pm: true });
+  assert.deepEqual(works("9:00-16:00"), { am: true, pm: true });
+  assert.deepEqual(works("9:00-13:30"), { am: true, pm: false });
+  assert.deepEqual(works("13:00-17:30"), { am: false, pm: true });
+  assert.deepEqual(works("12:00-14:00"), { am: false, pm: true });
+  assert.equal(shiftWeight("9:00-13:30"), 0.5);
+  assert.equal(makeTimeRange("09:00", "13:30"), "9:00-13:30");
+  assert.equal(makeTimeRange("13:30", "9:00"), "");
+  assert.equal(shiftLabel("9:00-13:30"), "9-13:30");
+  assert.equal(shiftLabel("〇"), "〇");
+});

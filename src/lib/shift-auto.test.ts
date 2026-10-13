@@ -68,3 +68,16 @@ test("出勤人数を週の中で平準化する", () => {
   const open = checks.filter((c) => c.date !== "2026-10-11").map((c) => c.workers);
   assert.ok(Math.max(...open) - Math.min(...open) <= 1, open.join(","));
 });
+
+test("出勤日には、その人のいつもの勤務時間を入れる（半日勤務は 0.5 人と数える）", () => {
+  const staff = [
+    { ...s(1, "看護師", 5), workCode: "8:30-17:30" },
+    { ...s(2, "機能訓練指導員", 5), workCode: "9:00-16:00" },
+    { ...s(3, "介護職員", 3), workCode: "9:00-13:30" },
+  ];
+  const { grid, checks } = autoShift({ ...base, dates: week, staff, rules: { ...rules, required: 2 } });
+  assert.ok(week.some((d) => grid.get(`3|${d}`) === "9:00-13:30"));
+  assert.equal(grid.get("1|2026-10-05"), "8:30-17:30");
+  const day = checks.find((c) => grid.get(`3|${c.date}`) === "9:00-13:30")!;
+  assert.equal(day.workers % 1, 0.5);
+});

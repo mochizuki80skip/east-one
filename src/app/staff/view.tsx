@@ -51,6 +51,7 @@ export default function StaffView() {
             <tr>
               <th className={th}>名前</th>
               <th className={th}>ステータス</th>
+              <th className={th}>勤務時間</th>
               <th className={th}>資格・役職</th>
               <th className={th}>勤務形態</th>
               <th className={th}>週</th>
@@ -66,7 +67,11 @@ export default function StaffView() {
                     {s.name}
                   </Link>
                 </td>
-                <td className={td}>{s.status}</td>
+                <td className={td}>
+                  {s.contract || <span className="text-amber-700">未設定</span>}
+                  {s.status !== "在籍" && <span className="ml-1 rounded bg-slate-200 px-1 text-xs text-slate-600">{s.status}</span>}
+                </td>
+                <td className={`${td} text-xs`}>{splitList(s.patterns).join("、")}</td>
                 <td className={td}>{s.role}</td>
                 <td className={td} title={empLabel.get(s.employment)}>
                   {s.employment}
@@ -83,7 +88,7 @@ export default function StaffView() {
             ))}
             {staff.length === 0 && (
               <tr>
-                <td className={td} colSpan={7}>
+                <td className={td} colSpan={8}>
                   スタッフが登録されていません。
                 </td>
               </tr>

@@ -21,7 +21,21 @@ export const EMPLOYMENT_TYPES = [
   { code: "D", label: "常勤以外で兼務" },
 ] as const;
 
+/** 在籍状況（退職・休職の人はシフトや日々のスケジュールに出さない） */
 export const STAFF_STATUSES = ["在籍", "休職", "退職"] as const;
+
+/** 雇用区分 */
+export const CONTRACTS = ["正社員", "時短社員", "パート"] as const;
+export type Contract = (typeof CONTRACTS)[number];
+
+/** 雇用区分ごとの勤務時間パターンの初期値（スタッフごとに変更できる） */
+export const DEFAULT_PATTERNS: Record<Contract, string[]> = {
+  正社員: ["8:30-17:30"],
+  時短社員: ["9:00-16:00"],
+  パート: ["9:00-13:30", "13:00-17:30"],
+};
+/** 雇用区分ごとの週の勤務日数の初期値 */
+export const DEFAULT_DAYS: Record<Contract, number> = { 正社員: 5, 時短社員: 5, パート: 3 };
 
 /** できること（複数選択） */
 export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "メディカルケア", "FIT", "血圧測定", "入浴介助", "事務"] as const;
@@ -56,7 +70,44 @@ export type ShiftCode = (typeof SHIFT_CODES)[number]["code"];
 
 const SHIFT_BY_CODE = new Map<string, (typeof SHIFT_CODES)[number]>(SHIFT_CODES.map((c) => [c.code, c]));
 
+// ---------------- 勤務時間（「9:00-13:30」の形のシフト） ----------------
+const TIME_RANGE_RE = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/;
+
+/** 「9:00-13:30」→ 開始・終了の分（それ以外は null） */
+export function parseTimeRange(code: string | null | undefined): { start: number; end: number } | null {
+  const m = TIME_RANGE_RE.exec((code ?? "").trim());
+  if (!m) return null;
+  const start = Number(m[1]) * 60 + Number(m[2]);
+  const end = Number(m[3]) * 60 + Number(m[4]);
+  return end > start && end <= 24 * 60 ? { start, end } : null;
+}
+
+export const isTimeRange = (code: string | null | undefined) => parseTimeRange(code) !== null;
+
+/** 開始・終了（「9:00」「13:30」）から勤務時間の記号を作る。正しくなければ空文字 */
+export function makeTimeRange(start: string, end: string): string {
+  const norm = (t: string) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim());
+    return m ? `${Number(m[1])}:${m[2]}` : "";
+  };
+  const code = `${norm(start)}-${norm(end)}`;
+  return parseTimeRange(code) ? code : "";
+}
+
+/** シフト表のセル用の短い表示（「9:00-13:30」→「9-13:30」） */
+export function shiftLabel(code: string): string {
+  return isTimeRange(code) ? code.replace(/:00/g, "") : code;
+}
+
+/**
+ * その記号で午前・午後に勤務しているか。
+ *  - 決まった記号（〇・午前・①など）は表のとおり
+ *  - 勤務時間（9:00-13:30 など）は、午前= 12:00 より前に始まり 10:00 より後まで、
+ *    午後= 13:30 より後まで働き 15:00 より前に始まる、で判定する
+ */
 export function shiftWorks(code: string | null | undefined): { am: boolean; pm: boolean } {
+  const t = parseTimeRange(code);
+  if (t) return { am: t.start < 12 * 60 && t.end > 10 * 60, pm: t.end > 13 * 60 + 30 && t.start < 15 * 60 };
   const c = code ? SHIFT_BY_CODE.get(code) : undefined;
   return { am: !!c?.am, pm: !!c?.pm };
 }

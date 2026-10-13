@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { REQUEST_CODES, SHIFT_CODES, shiftWeight, WEEKDAYS } from "@/lib/constants";
+import { isTimeRange, REQUEST_CODES, SHIFT_CODES, shiftLabel, shiftWeight, shiftWorks, WEEKDAYS } from "@/lib/constants";
 import { autoShift, checkShift, type ShiftRules } from "@/lib/shift-auto";
 import { saveShiftMonth, type Cell } from "@/lib/data";
 import { btnGreen, btnPrimary, btnSecondary } from "./ui";
@@ -14,6 +14,11 @@ type StaffRow = {
   days_per_week: number;
   available_weekdays: number[];
   sort_order: number;
+  /** 雇用区分（正社員・時短社員・パート） */
+  contract: string;
+  /** 勤務時間のパターン（先頭がいつもの時間） */
+  patterns: string[];
+  workCode?: string;
 };
 type Props = {
   storeId: number;
@@ -47,6 +52,17 @@ const CODE_STYLE: Record<string, string> = {
   日: "bg-slate-200 text-slate-500",
   他店: "bg-violet-100 text-violet-800",
 };
+
+/** セルの色: 勤務時間は終日なら白、半日なら水色 */
+function codeStyle(code: string): string {
+  if (isTimeRange(code)) {
+    const w = shiftWorks(code);
+    return w.am && w.pm ? "bg-white" : "bg-sky-50";
+  }
+  return CODE_STYLE[code] ?? "";
+}
+
+const CONTRACT_SHORT: Record<string, string> = { 正社員: "正", 時短社員: "時短", パート: "パ" };
 
 export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialCells, initialRequests, busy }: Props) {
   const [cells, setCells] = useState<Record<string, string>>(() => toMap(initialCells));
@@ -108,7 +124,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
       return n + (c === "有" ? 1 : c === "前有" || c === "後有" ? 0.5 : 0);
     }, 0);
 
-  const options = mode === "shift" ? SHIFT_CODES.map((c) => c.code as string) : [...REQUEST_CODES];
+  const fixedCodes = SHIFT_CODES.map((c) => c.code as string);
 
   return (
     <div className="space-y-3">
@@ -151,6 +167,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
             <tr>
               <th className="border bg-slate-100 px-1 py-1 text-left">資格・役職</th>
               <th className="border bg-slate-100 px-1">形態</th>
+              <th className="border bg-slate-100 px-1">区分</th>
               <th className="sticky left-0 z-10 border bg-slate-100 px-1 text-left">スタッフ名</th>
               {dates.map((d) => {
                 const dt = new Date(`${d}T00:00:00`);
@@ -173,6 +190,9 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
                   {s.role}
                 </td>
                 <td className="border px-1 text-center">{s.employment}</td>
+                <td className="whitespace-nowrap border px-1 text-center text-[11px]" title={s.contract ? `${s.contract}　${s.patterns.join("、")}` : "雇用区分が未設定"}>
+                  {CONTRACT_SHORT[s.contract] ?? "-"}
+                </td>
                 <td className="sticky left-0 z-10 whitespace-nowrap border bg-white px-1 font-medium">{s.name}</td>
                 {dates.map((d) => {
                   const k = `${s.id}|${d}`;
@@ -180,21 +200,40 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
                   const req = requests[k] ?? "";
                   const value = mode === "shift" ? code : req;
                   return (
-                    <td key={d} className={`relative border p-0 text-center ${CODE_STYLE[code] ?? ""}`}>
+                    <td key={d} className={`relative border p-0 text-center ${codeStyle(code)}`}>
                       <select
                         value={value}
                         onChange={(e) => setCell(k, e.target.value)}
-                        className="no-print h-7 w-11 cursor-pointer appearance-none bg-transparent text-center text-xs"
-                        title={busySet.has(k) ? "他店舗で勤務が入っています" : req ? `希望: ${req}` : ""}
+                        className="no-print h-7 w-[4.25rem] cursor-pointer appearance-none bg-transparent text-center text-[11px] tracking-tight"
+                        title={busySet.has(k) ? "他店舗で勤務が入っています" : req ? `希望: ${req}` : code}
                       >
                         <option value=""></option>
-                        {options.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
+                        {mode === "shift" ? (
+                          <>
+                            <optgroup label="勤務時間">
+                              {[...new Set([...s.patterns, ...(isTimeRange(code) ? [code] : [])])].map((o) => (
+                                <option key={o} value={o}>
+                                  {shiftLabel(o)}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="記号">
+                              {fixedCodes.map((o) => (
+                                <option key={o} value={o}>
+                                  {o}
+                                </option>
+                              ))}
+                            </optgroup>
+                          </>
+                        ) : (
+                          REQUEST_CODES.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))
+                        )}
                       </select>
-                      <span className="hidden print:inline">{code}</span>
+                      <span className="hidden text-[10px] print:inline">{shiftLabel(code)}</span>
                       {req && mode === "shift" && <span className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-amber-500" />}
                     </td>
                   );
@@ -218,7 +257,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
               ] as const
             ).map(([labelText, val, bad]) => (
               <tr key={labelText}>
-                <td colSpan={3} className="sticky left-0 z-10 border bg-slate-50 px-1 font-semibold">
+                <td colSpan={4} className="sticky left-0 z-10 border bg-slate-50 px-1 font-semibold">
                   {labelText}
                 </td>
                 {checks.map((c) => {
@@ -241,6 +280,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
             {c.code}: {c.label}
           </span>
         ))}
+        <span className="rounded border bg-white px-1.5 py-0.5">9-17:30 など: 勤務時間（スタッフ登録のパターン）。半日勤務は水色、0.5人と数えます</span>
         <span className="rounded border px-1.5 py-0.5">
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
           希望あり

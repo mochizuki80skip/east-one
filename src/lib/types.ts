@@ -21,7 +21,12 @@ export type Store = {
 export type Staff = {
   id: number;
   name: string;
+  /** 在籍状況（在籍・休職・退職） */
   status: string;
+  /** 雇用区分（正社員・時短社員・パート）。古いデータには無い */
+  contract?: string;
+  /** 勤務時間のパターン（「8:30-17:30,9:00-13:30」の形）。先頭がいつもの時間 */
+  patterns?: string;
   employment: string;
   role: string;
   skills: string;

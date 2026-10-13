@@ -8,7 +8,9 @@ import {
   isNoonRun,
   RUNS,
   SESSIONS,
+  isTimeRange,
   SHIFT_CODES,
+  shiftLabel,
   shiftWorks,
   TRAINING_SKILLS,
   type Duty,
@@ -23,7 +25,7 @@ import { saveDaily } from "@/lib/data";
 import { links } from "@/lib/links";
 import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
 
-type StaffLite = { id: number; name: string; role: string; skills: string[] };
+type StaffLite = { id: number; name: string; role: string; skills: string[]; patterns?: string[] };
 type ClientLite = {
   id: number;
   name: string;
@@ -325,13 +327,22 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
                     {hasSkill(s, DUTIES) ? "🤸" : ""} {s.role}
                   </div>
                 </div>
-                <select value={codeOf.get(s.id) ?? ""} onChange={(e) => setShift(s.id, e.target.value)} className={`${input} w-20`}>
+                <select value={codeOf.get(s.id) ?? ""} onChange={(e) => setShift(s.id, e.target.value)} className={`${input} w-24`}>
                   <option value="">-</option>
-                  {SHIFT_CODES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code}
-                    </option>
-                  ))}
+                  <optgroup label="勤務時間">
+                    {[...new Set([...(s.patterns ?? []), ...(isTimeRange(codeOf.get(s.id)) ? [codeOf.get(s.id)!] : [])])].map((c) => (
+                      <option key={c} value={c}>
+                        {shiftLabel(c)}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="記号">
+                    {SHIFT_CODES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             );

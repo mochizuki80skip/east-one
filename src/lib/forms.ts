@@ -1,5 +1,5 @@
 /** 入力フォームの内容を読み取り、保存する（ブラウザ側） */
-import { joinList, SKILLS, type Session } from "./constants";
+import { CONTRACTS, isTimeRange, joinList, SKILLS, splitList, type Session } from "./constants";
 import {
   importClients,
   importStaff,
@@ -102,6 +102,8 @@ export async function submitStaff(fd: FormData) {
     id: optId(fd, "id") ?? undefined,
     name,
     status: str(fd, "status") || "在籍",
+    contract: (CONTRACTS as readonly string[]).includes(str(fd, "contract")) ? str(fd, "contract") : "",
+    patterns: joinList([...new Set(splitList(str(fd, "patterns")).filter(isTimeRange))]),
     employment: str(fd, "employment") || "A",
     role: str(fd, "role"),
     skills: joinList(skills),

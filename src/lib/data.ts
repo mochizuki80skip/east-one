@@ -9,7 +9,7 @@
  *  monthly        `${利用者ID}:${年月}` 月次報告
  */
 import { api, type BatchOp } from "./api";
-import { joinList, shiftWorks, splitList, type RunKind, type Session } from "./constants";
+import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, shiftWorks, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
 import { normalizeName } from "./import";
 import { driverGroupOf, type TransportHistory } from "./transport";
@@ -115,6 +115,8 @@ export async function importStaff(storeId: number, list: ImportedStaff[]): Promi
       continue;
     }
     const skills = st.role.includes("機能訓練指導員") ? "個別機能訓練,整体" : st.role === "ドライバー" ? "運転" : "";
+    // 勤務形態 A・B（常勤）は正社員、C・D（常勤以外）はパートとして仮に登録する（あとで変更可）
+    const contract = st.employment === "A" || st.employment === "B" ? "正社員" : "パート";
     ops.push(
       put("staff", null, {
         name: st.name,
@@ -122,7 +124,9 @@ export async function importStaff(storeId: number, list: ImportedStaff[]): Promi
         employment: st.employment,
         role: st.role,
         skills,
-        days_per_week: st.employment === "A" || st.employment === "B" ? 5 : 3,
+        contract,
+        patterns: DEFAULT_PATTERNS[contract].join(","),
+        days_per_week: DEFAULT_DAYS[contract],
         available_weekdays: "1,2,3,4,5,6",
         note: "",
         sort_order: ++maxOrder,

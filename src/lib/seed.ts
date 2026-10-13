@@ -39,7 +39,20 @@ export async function seedSample(): Promise<number | null> {
       op: "put",
       c: "staff",
       id: null,
-      data: { name, status: "在籍", employment, role, skills, days_per_week: days, available_weekdays: "1,2,3,4,5,6", note: "", sort_order: i + 1, store_ids: String(storeId) },
+      data: {
+        name,
+        status: "在籍",
+        contract: employment === "A" || employment === "B" ? "正社員" : days >= 4 ? "時短社員" : "パート",
+        patterns: employment === "A" || employment === "B" ? "8:30-17:30" : days >= 4 ? "9:00-16:00" : "9:00-13:30,13:00-17:30",
+        employment,
+        role,
+        skills,
+        days_per_week: days,
+        available_weekdays: "1,2,3,4,5,6",
+        note: "",
+        sort_order: i + 1,
+        store_ids: String(storeId),
+      },
     })),
   );
   const staffIds = staffRes.map((r) => Number(r.id));

@@ -59,6 +59,9 @@ export default function ShiftView() {
             days_per_week: s.days_per_week,
             available_weekdays: splitList(s.available_weekdays).map(Number),
             sort_order: s.sort_order,
+            contract: s.contract ?? "",
+            patterns: splitList(s.patterns),
+            workCode: splitList(s.patterns)[0],
           }))}
           rules={{
             required: store.required_staff,

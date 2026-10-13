@@ -53,7 +53,7 @@ export default function DailyView() {
         initial={detail}
         planContext={{ store, staff, clients, vehicles, routes, history }}
         slots={{ am: splitList(store.am_slots), pm: splitList(store.pm_slots) }}
-        staff={staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills) }))}
+        staff={staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), patterns: splitList(s.patterns) }))}
         clients={clients.map((c) => ({
           id: c.id,
           name: c.name,
