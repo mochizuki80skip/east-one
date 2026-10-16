@@ -179,7 +179,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
     update((p) => ({ ...p, training: p.training.filter((t) => !(t.client_id === cid && t.session === session)) }));
   const trainers = (session: Session) => staff.filter((s) => hasSkill(s, TRAINING_SKILLS) && works(s.id)[session]);
 
-  // ---------- 体操・メディカルケア・FIT ----------
+  // ---------- 体操・メディカルケアFIT ----------
   const dutyOf = (session: Session, duty: Duty) => d.duties.find((x) => x.session === session && x.duty === duty)?.staff_id ?? null;
   const setDuty = (session: Session, duty: Duty, staffId: number | null) =>
     update((p) => ({
@@ -348,7 +348,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
             );
           })}
         </div>
-        <p className="mt-1 text-xs text-slate-500">🚗=運転 🤝=添乗 ✋=整体・個別機能訓練 🤸=体操・メディカルケア・FIT</p>
+        <p className="mt-1 text-xs text-slate-500">🚗=運転 🤝=添乗 ✋=整体・個別機能訓練 🤸=体操・メディカルケアFIT</p>
       </section>
 
       {/* 2. 利用者 */}
@@ -662,10 +662,10 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
         </div>
       </section>
 
-      {/* 5. 体操・メディカルケア・FIT */}
+      {/* 5. 体操・メディカルケアFIT */}
       <section className="rounded-lg border bg-white p-4">
         <h2 className="mb-2 font-bold">
-          5. 体操・メディカルケア・FIT の担当{" "}
+          5. 体操・メディカルケアFIT の担当{" "}
           <span className="text-sm font-normal text-slate-500">自動作成では、昼送車（午前）・昼迎車（午後）の運転・添乗の人を避けて選びます。</span>
         </h2>
         <table className="border text-sm">

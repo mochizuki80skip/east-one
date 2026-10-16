@@ -224,7 +224,7 @@ export default function DailyPrintView() {
                 <tbody>
                   {blocks.map((b) => (
                     <tr key={b.key}>
-                      <td className={`${cell} w-[17mm] whitespace-nowrap`}>{b.label.replace("体操・メディカルケア・FIT", "体操等")}</td>
+                      <td className={`${cell} w-[17mm] whitespace-nowrap`}>{b.label.replace("体操・メディカルケアFIT", "体操等")}</td>
                       <td className={cell}>{b.free.map((id) => sn(id)).join(" ") || "—"}</td>
                     </tr>
                   ))}

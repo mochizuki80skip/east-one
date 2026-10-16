@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { isTimeRange, REQUEST_CODES, SHIFT_CODES, shiftLabel, shiftWeight, shiftWorks, WEEKDAYS } from "@/lib/constants";
-import { autoShift, checkShift, type ShiftRules } from "@/lib/shift-auto";
+import { autoShift, checkShift, SOFT_REQUEST, type ShiftRules } from "@/lib/shift-auto";
 import { saveShiftMonth, type Cell } from "@/lib/data";
 import { btnGreen, btnPrimary, btnSecondary } from "./ui";
 
@@ -80,9 +80,10 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
   const setCell = (k: string, v: string) => {
     if (mode === "shift") setCells((p) => ({ ...p, [k]: v }));
     else {
+      const old = requests[k] ?? "";
       setRequests((p) => ({ ...p, [k]: v }));
-      // 希望を入れたらシフト側にも反映
-      if (v) setCells((p) => ({ ...p, [k]: v }));
+      // 希望を入れたらシフト側にも反映。希望を消したら、シフト側に写した分も消す
+      setCells((p) => (v ? { ...p, [k]: v } : p[k] === old ? { ...p, [k]: "" } : p));
     }
     setDirty(true);
   };
@@ -96,13 +97,25 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
         rules,
         staff,
         requests: new Map(toCells(requests).map((c) => [k(c), c.code])),
-        locked: m === "fill" ? new Map(toCells(cells).map((c) => [k(c), c.code])) : new Map(),
+        // 希望をそのまま写しただけのセルは固定しない（希望休は「なるべく休み」として扱う）
+        locked: m === "fill" ? new Map(toCells(cells).filter((c) => requests[k(c)] !== c.code).map((c) => [k(c), c.code])) : new Map(),
         busyElsewhere: busySet,
       });
       setCells(Object.fromEntries(r.grid));
       setDirty(true);
       const bad = r.checks.filter((c) => c.messages.length).length;
-      setMsg(bad ? `自動作成しました。人数が足りない日が ${bad} 日あります（赤の日）。` : "自動作成しました。内容を確認して保存してください。");
+      const name = (id: number) => staff.find((x) => x.id === id)?.name ?? "";
+      const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+      setMsg(
+        [
+          bad ? `自動作成しました。人数が足りない日が ${bad} 日あります（赤の日）。` : "自動作成しました。内容を確認して保存してください。",
+          r.overridden.length
+            ? `人数が足りないため、希望休を出勤にした日があります（赤枠）: ${r.overridden.map((o) => `${name(o.staff_id)} ${md(o.date)}`).join("、")}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
     });
   };
 
@@ -125,6 +138,10 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
     }, 0);
 
   const fixedCodes = SHIFT_CODES.map((c) => c.code as string);
+  /** 希望休を出しているのに出勤になっているセル */
+  const unmet = (k: string) => requests[k] === SOFT_REQUEST && shiftWeight(cells[k]) > 0;
+  const requestCount = (sid: number) => dates.filter((d) => requests[`${sid}|${d}`] === SOFT_REQUEST).length;
+  const unmetCount = (sid: number) => dates.filter((d) => unmet(`${sid}|${d}`)).length;
 
   return (
     <div className="space-y-3">
@@ -134,7 +151,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
             シフト入力
           </button>
           <button onClick={() => setMode("request")} className={`px-3 py-1.5 text-sm ${mode === "request" ? "bg-amber-500 text-white" : "bg-white"}`}>
-            希望休入力
+            📅 希望休を入力
           </button>
         </div>
         <button onClick={() => runAuto("fill")} disabled={pending} className={btnPrimary} title="入力済みのセルは残し、空欄だけ埋めます">
@@ -156,9 +173,16 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
       </div>
 
       {mode === "request" && (
-        <p className="no-print rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          希望休入力モード: スタッフから出た希望休（希休）・有給（有・前有・後有）を入れてください。自動作成はこの希望を必ず守ります。
-        </p>
+        <div className="no-print space-y-1 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-semibold">希望休を入力しています。日付のマスを押して「希休」を選び、最後に 💾 保存 を押してください。</p>
+          <p>
+            ・<b>希休（希望休）</b>は「なるべく休み」です。自動作成はまず休みにして組みますが、その日の必要人数・看護師・機能訓練指導員が足りないときは出勤になることがあります（赤枠で表示し、名前と日付をお知らせします）。
+          </p>
+          <p>
+            ・<b>有・前有・後有（有給）</b>は必ず休みにします。
+          </p>
+          <p>・入れ終わったら「シフト入力」に戻り、⚡ 自動作成 を押してください。</p>
+        </div>
       )}
 
       <div className="overflow-x-auto rounded border bg-white print:overflow-visible">
@@ -181,6 +205,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
               })}
               <th className="border bg-slate-100 px-1">出勤</th>
               <th className="border bg-slate-100 px-1">有給</th>
+              <th className="border bg-slate-100 px-1" title="希望休の数（出勤になった数）">希望休</th>
             </tr>
           </thead>
           <tbody>
@@ -200,12 +225,23 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
                   const req = requests[k] ?? "";
                   const value = mode === "shift" ? code : req;
                   return (
-                    <td key={d} className={`relative border p-0 text-center ${codeStyle(code)}`}>
+                    <td
+                      key={d}
+                      className={`relative border p-0 text-center ${mode === "request" ? (req ? codeStyle(req) : "") : codeStyle(code)} ${unmet(k) ? "outline outline-2 -outline-offset-2 outline-red-500" : ""}`}
+                    >
                       <select
                         value={value}
                         onChange={(e) => setCell(k, e.target.value)}
                         className="no-print h-7 w-[4.25rem] cursor-pointer appearance-none bg-transparent text-center text-[11px] tracking-tight"
-                        title={busySet.has(k) ? "他店舗で勤務が入っています" : req ? `希望: ${req}` : code}
+                        title={
+                          busySet.has(k)
+                            ? "他店舗で勤務が入っています"
+                            : unmet(k)
+                              ? "希望休でしたが、人数が足りないため出勤になっています"
+                              : req
+                                ? `希望: ${req}`
+                                : code
+                        }
                       >
                         <option value=""></option>
                         {mode === "shift" ? (
@@ -243,6 +279,10 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
                   <span className="text-slate-400">/{Math.round((s.days_per_week * dates.filter((d) => !closed.has(new Date(`${d}T00:00:00`).getDay())).length) / Math.max(1, 7 - closed.size))}</span>
                 </td>
                 <td className="border px-1 text-center">{paidDays(s.id) || ""}</td>
+                <td className="whitespace-nowrap border px-1 text-center">
+                  {requestCount(s.id) || ""}
+                  {unmetCount(s.id) > 0 && <span className="ml-0.5 text-red-600">（出{unmetCount(s.id)}）</span>}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -268,7 +308,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
                     </td>
                   );
                 })}
-                <td colSpan={2} className="border" />
+                <td colSpan={3} className="border" />
               </tr>
             ))}
           </tfoot>
@@ -284,6 +324,10 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
         <span className="rounded border px-1.5 py-0.5">
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
           希望あり
+        </span>
+        <span className="rounded border px-1.5 py-0.5">
+          <span className="mr-1 inline-block h-2.5 w-3 align-middle outline outline-2 -outline-offset-2 outline-red-500" />
+          希望休だが出勤（人数不足）
         </span>
       </div>
     </div>

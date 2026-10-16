@@ -26,12 +26,32 @@ test("定休日は全員「日」、常勤は週の勤務日数どおりに入�
   }
 });
 
-test("希望休は守られ、その日は出勤にならない", () => {
-  const staff = [s(1, "看護師", 5), s(2, "機能訓練指導員", 5), s(3, "介護職員", 5), s(4, "介護職員", 5)];
+test("人数が足りていれば希望休は休みになり、勤務日数は別の日で満たす", () => {
+  const staff = [s(1, "看護師", 5), s(2, "看護師", 5), s(3, "機能訓練指導員", 6), s(4, "介護職員", 6), s(5, "介護職員", 6)];
   const requests = new Map([["1|2026-10-07", "希休"]]);
-  const { grid } = autoShift({ ...base, requests, dates: week, staff, rules });
+  const { grid, overridden } = autoShift({ ...base, requests, dates: week, staff, rules });
   assert.equal(grid.get("1|2026-10-07"), "希休");
   assert.equal(week.filter((d) => grid.get(`1|${d}`) === "〇").length, 5);
+  assert.deepEqual(overridden, []);
+});
+
+test("希望休でも、その日に看護師が他にいなければ出勤にして知らせる", () => {
+  const staff = [s(1, "看護師", 5), s(2, "機能訓練指導員", 6), s(3, "介護職員", 6), s(4, "介護職員", 6)];
+  const requests = new Map([["1|2026-10-07", "希休"]]);
+  const { grid, checks, overridden } = autoShift({ ...base, requests, dates: week, staff, rules });
+  assert.equal(grid.get("1|2026-10-07"), "〇");
+  assert.deepEqual(overridden, [{ staff_id: 1, date: "2026-10-07" }]);
+  assert.ok(checks.find((c) => c.date === "2026-10-07")!.nurses >= 1);
+  // 勤務日数は増やさない（別の日が休みになる）
+  assert.equal(week.filter((d) => grid.get(`1|${d}`) === "〇").length, 5);
+});
+
+test("有給は人数が足りなくても必ず休み", () => {
+  const staff = [s(1, "看護師", 5), s(2, "機能訓練指導員", 6), s(3, "介護職員", 6), s(4, "介護職員", 6)];
+  const requests = new Map([["1|2026-10-07", "有"]]);
+  const { grid, overridden } = autoShift({ ...base, requests, dates: week, staff, rules });
+  assert.equal(grid.get("1|2026-10-07"), "有");
+  assert.deepEqual(overridden, []);
 });
 
 test("看護師の最低人数を優先して配置する", () => {

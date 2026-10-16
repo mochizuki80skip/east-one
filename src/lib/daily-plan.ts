@@ -114,7 +114,7 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
     }
   }
 
-  // ---- 体操・メディカルケア・FIT ----
+  // ---- 体操・メディカルケアFIT ----
   const staffLite = staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), sortOrder: s.sort_order }));
   const d = planDuties({ staff: staffLite, codeOf: (id) => codeOf.get(id), runs, training });
   warnings.push(...d.warnings);

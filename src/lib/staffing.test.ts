@@ -4,7 +4,7 @@ import { freeStaffBlocks, planDuties, qualificationSummary, type StaffLite } fro
 
 const staff: StaffLite[] = [
   { id: 1, name: "A", role: "管理者", skills: ["運転", "体操"] },
-  { id: 2, name: "B", role: "生活相談員兼介護職員", skills: ["運転", "体操", "メディカルケア", "FIT"] },
+  { id: 2, name: "B", role: "生活相談員兼介護職員", skills: ["運転", "体操", "メディカルケアFIT"] },
   { id: 3, name: "C", role: "機能訓練指導員", skills: ["整体"] },
   { id: 4, name: "D", role: "看護師", skills: [] },
   { id: 5, name: "E", role: "介護職員", skills: ["体操"] },
@@ -50,7 +50,7 @@ test("空いているスタッフ: 送迎・訓練・体操等の担当がない
   assert.deepEqual(free("evening"), [1, 2, 3, 5]);
 });
 
-test("体操等の担当: 3つを持てる人を優先し、昼の運転者は避ける", () => {
+test("体操等の担当: 両方を持てる人を優先し、昼の運転者は避ける", () => {
   const { duties } = planDuties({ staff, codeOf, runs: [], training: [] });
   assert.ok(duties.filter((d) => d.session === "am").every((d) => d.staff_id === 2));
   const r2 = planDuties({ staff, codeOf, runs: [{ run: "noon_drop", driver_id: 2, escort_id: null }], training: [] });
@@ -72,4 +72,25 @@ test("勤務時間のパターン: 時間から午前・午後の勤務を判定
   assert.equal(makeTimeRange("13:30", "9:00"), "");
   assert.equal(shiftLabel("9:00-13:30"), "9-13:30");
   assert.equal(shiftLabel("〇"), "〇");
+});
+
+import { normalizeDuties, normalizeSkills } from "./constants";
+
+test("以前のスキル名・担当名を今の名前にそろえる（メディカルケア・FIT → メディカルケアFIT、入浴介助は外す）", () => {
+  assert.deepEqual(normalizeSkills(["運転", "メディカルケア", "FIT", "入浴介助", "事務"]), ["運転", "メディカルケアFIT", "事務"]);
+  assert.deepEqual(normalizeSkills(["メディカルケアFIT", "FIT"]), ["メディカルケアFIT"]);
+  assert.deepEqual(
+    normalizeDuties([
+      { session: "am", duty: "体操", staff_id: 1 },
+      { session: "am", duty: "メディカルケア", staff_id: null },
+      { session: "am", duty: "FIT", staff_id: 2 },
+      { session: "pm", duty: "メディカルケア", staff_id: 3 },
+      { session: "pm", duty: "FIT", staff_id: 4 },
+    ]),
+    [
+      { session: "am", duty: "体操", staff_id: 1 },
+      { session: "am", duty: "メディカルケアFIT", staff_id: 2 },
+      { session: "pm", duty: "メディカルケアFIT", staff_id: 3 },
+    ],
+  );
 });

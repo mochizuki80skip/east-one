@@ -9,7 +9,7 @@
  *  monthly        `${利用者ID}:${年月}` 月次報告
  */
 import { api, type BatchOp } from "./api";
-import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, shiftWorks, splitList, type RunKind, type Session } from "./constants";
+import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, normalizeDuties, normalizeSkills, shiftWorks, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
 import { normalizeName } from "./import";
 import { driverGroupOf, type TransportHistory } from "./transport";
@@ -75,14 +75,19 @@ export async function deleteStore(id: number) {
 }
 
 // ---------------- スタッフ ----------------
+/** 以前のスキル名（メディカルケア・FIT・入浴介助）を今の名前にそろえる */
+const withSkills = (s: Staff): Staff => ({ ...s, skills: joinList(normalizeSkills(splitList(s.skills))) });
+
 export async function listStaff(opts: { storeId?: number; activeOnly?: boolean } = {}): Promise<Staff[]> {
   return (await all<Staff>("staff"))
+    .map(withSkills)
     .filter((s) => !opts.storeId || splitList(s.store_ids).includes(String(opts.storeId)))
     .filter((s) => !opts.activeOnly || s.status === "在籍")
     .sort(byOrder);
 }
 export async function getStaff(id: number): Promise<Staff | undefined> {
-  return (await api.get<Staff>("staff", id))?.data;
+  const s = (await api.get<Staff>("staff", id))?.data;
+  return s && withSkills(s);
 }
 export async function saveStaff(s: Omit<Staff, "id" | "store_ids"> & { id?: number; storeIds: number[] }): Promise<number> {
   const { storeIds, ...rest } = s;
@@ -328,7 +333,7 @@ export async function getDaily(storeId: number, date: string): Promise<DailyDeta
       attendance: (d.attendance ?? []).filter((a) => known.has(a.client_id)),
       runs: (d.runs ?? []).map((r) => ({ ...r, key: `r${n++}`, riders: r.riders.filter((x) => known.has(x.client_id)) })),
       training: (d.training ?? []).filter((t) => known.has(t.client_id)),
-      duties: d.duties ?? [],
+      duties: normalizeDuties(d.duties ?? []),
       tasks: d.tasks ?? [],
     };
   }

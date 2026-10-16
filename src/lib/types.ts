@@ -124,7 +124,7 @@ export type DailyDetail = {
   attendance: DailyAttendance[];
   runs: DailyRun[];
   training: DailyTraining[];
-  /** 体操・メディカルケア・FIT の担当 */
+  /** 体操・メディカルケアFIT の担当 */
   duties: DailyDuty[];
   /** スタッフごとの担当業務（空き時間の作業など） */
   tasks: DailyTask[];

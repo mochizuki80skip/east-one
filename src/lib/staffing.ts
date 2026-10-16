@@ -2,7 +2,7 @@
  * 日々の人員まわりの計算（純粋関数）。
  *  - 資格ごとの出勤人数（午前・午後）
  *  - 時間帯ごとに空いているスタッフの割り出し
- *  - 体操・メディカルケア・FIT の担当の自動割り当て
+ *  - 体操・メディカルケアFIT の担当の自動割り当て
  */
 import { DUTIES, QUALIFICATIONS, shiftWorks, type Duty, type RunKind, type Session } from "./constants";
 import { inc, pickBest, TODAY_LOAD_WEIGHT } from "./pick";
@@ -36,7 +36,7 @@ export function qualificationSummary(staff: StaffLite[], codeOf: (id: number) =>
 export type FreeBlock = { key: string; label: string; session: Session; free: number[]; busy: number[] };
 
 /**
- * 1 日を「送迎の便」「機能訓練・整体の時間枠」「体操・メディカルケア・FIT」の時間帯に区切り、
+ * 1 日を「送迎の便」「機能訓練・整体の時間枠」「体操・メディカルケアFIT」の時間帯に区切り、
  * その時間帯に勤務していて何も担当していないスタッフを返す。
  * 時間帯の並び: 朝迎車 → 午前の訓練枠 → 午前の体操等 → 昼送車 → 昼迎車 → 午後の体操等 → 午後の訓練枠 → 帰り送車
  */
@@ -66,7 +66,7 @@ export function freeStaffBlocks(opts: {
   };
   const dutyBlock = (session: Session) => {
     const busy = new Set(duties.filter((d) => d.session === session && d.staff_id != null).map((d) => d.staff_id!));
-    blocks.push({ key: `${session}-duty`, label: `${session === "am" ? "午前" : "午後"} 体操・メディカルケア・FIT`, session, busy });
+    blocks.push({ key: `${session}-duty`, label: `${session === "am" ? "午前" : "午後"} 体操・メディカルケアFIT`, session, busy });
   };
 
   runBlock("morning", "朝迎車", "am");
@@ -84,11 +84,11 @@ export function freeStaffBlocks(opts: {
   });
 }
 
-// ---------------- 体操・メディカルケア・FIT ----------------
+// ---------------- 体操・メディカルケアFIT ----------------
 /**
  * 午前・午後それぞれで担当を決める。
  *  - そのスキルを持つ出勤者から選ぶ（いなければ「体操」ができる人、それもいなければ未定）
- *  - 1 人で複数の担当を持てる人を優先（体操〜FIT は続けて行うため）
+ *  - 1 人で両方の担当を持てる人を優先（体操〜メディカルケアFIT は続けて行うため）
  *  - 午前は昼送車、午後は昼迎車の運転・添乗の人を避ける（時間が重なるため）
  *  - その日の担当数（訓練・送迎）が少ない人を優先
  */

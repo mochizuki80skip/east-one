@@ -3,7 +3,9 @@
  *
  * ルール:
  *  - 定休曜日は全員「日」
- *  - 手入力済みのセル（locked）とシフト希望（希休・有・前有・後有）はそのまま使う
+ *  - 手入力済みのセル（locked）と有給（有・前有・後有）はそのまま使う
+ *  - 希望休（希休）は「なるべく休み」。まず休みにして組み、それでも必要人数・看護師・機能訓練指導員が
+ *    足りない日だけ、希望休の人に出勤をお願いする（overridden で返し、画面で分かるようにする）
  *  - 他店舗で勤務が入っている日は「他店」
  *  - 各スタッフの週の勤務日数（days_per_week）を守る。常勤で日数を満たすには今日入る必要がある人は必ず入れる
  *  - 看護師・機能訓練指導員の最低人数を先に満たし、必要人数まで勤務日数の残りが多い人から入れる
@@ -73,7 +75,15 @@ function countsAsDay(code: string): boolean {
   return shiftWeight(code) > 0 || code === "有";
 }
 
-export function autoShift(input: ShiftInput): { grid: Map<string, string>; checks: DayCheck[] } {
+/** 希望休（なるべく休み。人数が足りない日は出勤になることがある） */
+export const SOFT_REQUEST = "希休";
+
+export function autoShift(input: ShiftInput): {
+  grid: Map<string, string>;
+  checks: DayCheck[];
+  /** 人数が足りず、希望休を出勤にしたセル */
+  overridden: { staff_id: number; date: string }[];
+} {
   const { dates, staff, rules, requests, locked, busyElsewhere } = input;
   const grid = new Map<string, string>();
   const closed = new Set(rules.closedWeekdays);
@@ -97,10 +107,15 @@ export function autoShift(input: ShiftInput): { grid: Map<string, string>; check
     if (!s.available_weekdays.includes(weekday(d))) return "休";
     return null;
   };
+  // 希望休のうち、足りない日に出勤をお願いできるセル（定休・手入力・他店・勤務できない曜日は除く）
+  const softOff = new Set<string>();
   for (const s of staff) for (const d of dates) {
+    const k = key(s.id, d);
     const p = preset(s, d);
-    if (p != null) grid.set(key(s.id, d), p);
+    if (p != null) grid.set(k, p);
+    if (p === SOFT_REQUEST && !locked.has(k) && !busyElsewhere.has(k) && s.available_weekdays.includes(weekday(d))) softOff.add(k);
   }
+  const overridden: { staff_id: number; date: string }[] = [];
 
   // 週ごとの割り当て
   for (const [, wdates] of weekDates) {
@@ -159,10 +174,31 @@ export function autoShift(input: ShiftInput): { grid: Map<string, string>; check
           grid.set(key(s.id, d), "休");
         }
       }
+
+      // それでも足りなければ、希望休の人に出勤をお願いする（その週の勤務日数が残っている人だけ。残りが多い人から）
+      const pullable = staff
+        .filter((s) => softOff.has(key(s.id, d)) && (quota.get(s.id) ?? 0) > 0)
+        .sort((a, b) => (quota.get(b.id) ?? 0) - (quota.get(a.id) ?? 0) || a.sort_order - b.sort_order || a.id - b.id);
+      const count = (pred: (role: string) => boolean) => staff.filter((s) => shiftWeight(grid.get(key(s.id, d))) > 0 && pred(s.role)).length;
+      const total = () => staff.reduce((n, s) => n + shiftWeight(grid.get(key(s.id, d))), 0);
+      const pull = (pred: (role: string) => boolean, enough: () => boolean) => {
+        for (const s of pullable) {
+          if (enough()) return;
+          const k = key(s.id, d);
+          if (!softOff.has(k) || !pred(s.role)) continue;
+          softOff.delete(k);
+          grid.set(k, s.workCode || "〇");
+          quota.set(s.id, (quota.get(s.id) ?? 0) - 1);
+          overridden.push({ staff_id: s.id, date: d });
+        }
+      };
+      pull(isNurse, () => count(isNurse) >= rules.minNurse);
+      pull(isTrainer, () => count(isTrainer) >= rules.minTrainer);
+      pull(() => true, () => total() >= rules.required);
     });
   }
 
-  return { grid, checks: checkShift(dates, staff, rules, grid) };
+  return { grid, checks: checkShift(dates, staff, rules, grid), overridden };
 }
 
 /** 日ごとの人数集計と不足チェック（手で調整した後の再チェックにも使う） */

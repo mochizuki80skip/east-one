@@ -38,8 +38,16 @@ export const DEFAULT_PATTERNS: Record<Contract, string[]> = {
 export const DEFAULT_DAYS: Record<Contract, number> = { 正社員: 5, 時短社員: 5, パート: 3 };
 
 /** できること（複数選択） */
-export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "メディカルケア", "FIT", "血圧測定", "入浴介助", "事務"] as const;
+export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "メディカルケアFIT", "血圧測定", "事務"] as const;
 export type Skill = (typeof SKILLS)[number];
+
+/** 以前の名前 → 今の名前（null は廃止。入浴サービスは無い） */
+const OLD_SKILLS: Record<string, string | null> = { メディカルケア: "メディカルケアFIT", FIT: "メディカルケアFIT", 入浴介助: null };
+
+/** 保存済みのスキルを今の名前にそろえる（「メディカルケア」「FIT」→「メディカルケアFIT」、入浴介助は外す） */
+export function normalizeSkills(list: string[]): string[] {
+  return [...new Set(list.flatMap((k) => (k in OLD_SKILLS ? (OLD_SKILLS[k] ? [OLD_SKILLS[k]!] : []) : [k])))];
+}
 
 /** 送迎の運転担当になれるスキル */
 export const DRIVE_SKILL: Skill = "運転";
@@ -169,9 +177,22 @@ export const RUN_KEYS: RunKind[] = RUNS.map((r) => r.key);
 export const isNoonRun = (r: RunKind) => r === "noon_drop" || r === "noon_pick";
 export const runLabel = (r: RunKind) => RUNS.find((x) => x.key === r)?.label ?? r;
 
-/** 体操・メディカルケア・FIT の担当（午前・午後それぞれ） */
-export const DUTIES = ["体操", "メディカルケア", "FIT"] as const;
+/** 体操・メディカルケアFIT の担当（午前・午後それぞれ） */
+export const DUTIES = ["体操", "メディカルケアFIT"] as const;
 export type Duty = (typeof DUTIES)[number];
+
+/** 保存済みの担当を今の名前にそろえる（以前の「メディカルケア」「FIT」は「メディカルケアFIT」にまとめる） */
+export function normalizeDuties<T extends { session: string; duty: string; staff_id: number | null }>(list: T[]): (T & { duty: Duty })[] {
+  const out: (T & { duty: Duty })[] = [];
+  for (const x of list) {
+    const duty = (OLD_SKILLS[x.duty] ?? x.duty) as Duty;
+    if (!(DUTIES as readonly string[]).includes(duty)) continue;
+    const same = out.find((o) => o.session === x.session && o.duty === duty);
+    if (!same) out.push({ ...x, duty });
+    else if (same.staff_id == null) same.staff_id = x.staff_id;
+  }
+  return out;
+}
 
 /** 出勤状況で数える資格の区分（「〇〇兼〇〇」は両方に数える） */
 export const QUALIFICATIONS = ["管理者", "生活相談員", "介護職員", "機能訓練指導員", "看護師", "ドライバー"] as const;
