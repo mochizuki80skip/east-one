@@ -25,10 +25,16 @@ export default function StaffView() {
     <div className="space-y-6">
       <PageTitle
         right={
-          <Link href={links.staffEdit()} className={btnPrimary}>
-            ＋ スタッフを追加
-          </Link>
+          <div className="flex gap-2">
+            <Link href={links.staffSkills(storeId || undefined)} className={btnSecondary}>
+              ✅ できることを一括登録
+            </Link>
+            <Link href={links.staffEdit()} className={btnPrimary}>
+              ＋ スタッフを追加
+            </Link>
+          </div>
         }
+        sub="登録の流れ: ① スタッフを追加（またはシフト表から取り込む） → ② できることを一括登録（運転・整体などにチェック）"
       >
         スタッフ
       </PageTitle>

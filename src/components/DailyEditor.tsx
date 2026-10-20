@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import {
   ABSENCE_REASONS,
@@ -20,7 +21,7 @@ import {
 import type { DailyDetail, DailyRun } from "@/lib/types";
 import { dailyReportRow, reasonsTsv, reportRowTsv } from "@/lib/daily-report";
 import { freeStaffBlocks, qualificationSummary } from "@/lib/staffing";
-import { autoPlanDaily, type PlanContext } from "@/lib/daily-plan";
+import { autoPlanDaily, autoPlanTraining, type PlanContext } from "@/lib/daily-plan";
 import { saveDaily } from "@/lib/data";
 import { links } from "@/lib/links";
 import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
@@ -206,6 +207,18 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
       setMsg("自動作成しました。内容を確認・手直しして保存してください。");
     });
   };
+  /** 整体・個別機能訓練の時間割と担当だけを作り直す（送迎・体操等はそのまま） */
+  const autoTraining = () => {
+    if (d.training.length && !window.confirm("整体・個別機能訓練の時間と担当を作り直します。手で直した内容は消えます。よろしいですか？")) return;
+    start(async () => {
+      const r = autoPlanTraining(d, planContext, d.runs);
+      update((p) => ({ ...p, training: r.training }));
+      setWarnings(r.warnings);
+      const n = r.training.filter((t) => t.staff_id != null).length;
+      setMsg(`整体・個別機能訓練の担当を自動で振り分けました（${n}/${r.training.length}名）。確認して保存してください。`);
+    });
+  };
+  const noTrainerRegistered = !staff.some((s) => hasSkill(s, TRAINING_SKILLS));
   const save = (then?: () => void) =>
     start(async () => {
       try {
@@ -577,6 +590,22 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
           4. 整体・個別機能訓練の時間割{" "}
           <span className="text-sm font-normal text-slate-500">午前・午後それぞれ {TIMETABLE_ROWS} 名分の一覧です。同じ時間に同じ担当が重なると赤く表示されます。</span>
         </h2>
+        <div className="no-print mb-3 flex flex-wrap items-center gap-2">
+          <button onClick={autoTraining} disabled={pending} className={btnPrimary}>
+            ⚡ 整体の担当だけ自動で振り分け
+          </button>
+          <span className="text-xs text-slate-500">
+            送迎の到着順に早い時間から入れ、「整体」「個別機能訓練」ができる出勤者に、前回と同じ人を避けて人数がかたよらないように振り分けます（送迎・体操等は変えません）。
+          </span>
+        </div>
+        {noTrainerRegistered && (
+          <p className="no-print mb-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            「整体」「個別機能訓練」ができるスタッフが登録されていないため、担当を振り分けられません。{" "}
+            <Link href={links.staffSkills(d.store_id)} className="font-semibold text-brand-700 underline">
+              できることを一括登録 →
+            </Link>
+          </p>
+        )}
         <div className="grid gap-4 lg:grid-cols-2">
           {SESSIONS.map((sess) => {
             const list = d.training

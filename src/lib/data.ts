@@ -102,6 +102,16 @@ export async function deleteStaff(id: number) {
       .map((v) => put("vehicles", v.id, { ...v, driver_ids: joinList(splitList(v.driver_ids).filter((x) => x !== String(id))) })),
   ]);
 }
+/** できることを一括で保存する（最新のデータを読み直し、できることだけ書き換える） */
+export async function saveStaffSkills(changes: { id: number; skills: string[] }[]) {
+  if (!changes.length) return;
+  const byId = new Map((await all<Staff>("staff")).map((s) => [s.id, s]));
+  await api.batch(
+    changes
+      .filter((c) => byId.has(c.id))
+      .map((c) => put("staff", c.id, { ...byId.get(c.id)!, skills: joinList(normalizeSkills(c.skills)) })),
+  );
+}
 export async function importStaff(storeId: number, list: ImportedStaff[]): Promise<{ created: number; linked: number }> {
   const staff = await all<Staff>("staff");
   const byName = new Map(staff.map((s) => [normalizeName(s.name), s]));

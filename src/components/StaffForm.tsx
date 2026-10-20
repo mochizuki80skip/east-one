@@ -53,8 +53,9 @@ export default function StaffForm({ staff, stores, defaultStoreId }: { staff?: S
     <Card>
       <form
         action={async (fd) => {
-          await submitStaff(fd);
-          router.push(links.staff());
+          const id = await submitStaff(fd);
+          // 新しく登録したときは、続けて「できること」の一括登録へ
+          router.push(!staff && id ? links.staffSkills(undefined, id) : links.staff());
         }}
         className="grid gap-4 md:grid-cols-3"
       >

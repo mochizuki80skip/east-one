@@ -91,14 +91,15 @@ export async function submitRoute(fd: FormData) {
   });
 }
 
-export async function submitStaff(fd: FormData) {
+/** スタッフを保存し、ID を返す */
+export async function submitStaff(fd: FormData): Promise<number | undefined> {
   const name = str(fd, "name");
   if (!name) return;
   const skills = fd
     .getAll("skills")
     .map(String)
     .filter((s) => (SKILLS as readonly string[]).includes(s));
-  await saveStaff({
+  return saveStaff({
     id: optId(fd, "id") ?? undefined,
     name,
     status: str(fd, "status") || "在籍",

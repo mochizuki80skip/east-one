@@ -164,3 +164,41 @@ test("時間割: 枠が足りなければ未定として返す", () => {
   });
   assert.deepEqual(overflow, [3]);
 });
+
+import { autoPlanTraining, type PlanContext } from "./daily-plan";
+import type { Client, DailyDetail, Staff, Store } from "./types";
+
+test("整体の担当だけ自動振り分け: 整体・個別機能訓練ができる出勤者だけに、送迎の到着順で振り分ける", () => {
+  const st = (id: number, skills: string): Staff =>
+    ({ id, name: `S${id}`, status: "在籍", employment: "A", role: "", skills, days_per_week: 5, available_weekdays: "", note: "", sort_order: id, store_ids: "1" }) as Staff;
+  const cl = (id: number, needs = 1): Client => ({ id, name: `C${id}`, needs_training: needs, uses_transport: 1, status: "利用中" }) as Client;
+  const ctx: PlanContext = {
+    store: { am_slots: "9:45,10:00", pm_slots: "14:05", slot_capacity: 2 } as Store,
+    staff: [st(1, "整体"), st(2, "個別機能訓練"), st(3, "運転"), st(4, "整体")],
+    clients: [cl(10), cl(11), cl(12), cl(13, 0)],
+    vehicles: [],
+    routes: [],
+    history: { transport: { lastDriver: new Map(), driveCounts: new Map() }, training: { lastStaff: new Map(), counts: new Map() } },
+  };
+  const present = (client_id: number) => ({ client_id, session: "am" as const, status: "present" as const, reason: "", extra: 0, note: "" });
+  const detail = {
+    shifts: [
+      { staff_id: 1, code: "〇" },
+      { staff_id: 2, code: "〇" },
+      { staff_id: 3, code: "〇" },
+      { staff_id: 4, code: "休" },
+    ],
+    attendance: [present(10), present(11), present(12), present(13)],
+  } as DailyDetail;
+  // 朝迎車の乗車順: 12 → 10 → 11
+  const runs = [{ key: "a", run: "morning" as const, vehicle_id: 1, driver_id: 3, escort_id: null, depart_time: "", riders: [12, 10, 11].map((c, i) => ({ client_id: c, direction: "pickup" as const, seq: i + 1 })) }];
+  const { training, warnings } = autoPlanTraining(detail, ctx, runs);
+  assert.deepEqual(training.map((t) => t.client_id), [12, 10, 11]); // 13 は機能訓練なし
+  assert.deepEqual(training.map((t) => t.slot_time), ["9:45", "9:45", "10:00"]);
+  assert.ok(training.every((t) => t.staff_id === 1 || t.staff_id === 2)); // 運転のみの人・休みの人は入らない
+  assert.notEqual(training[0].staff_id, training[1].staff_id); // 同じ時間に同じ人が2人を見ない
+  assert.deepEqual(warnings, []);
+
+  const none = autoPlanTraining(detail, { ...ctx, staff: [st(3, "運転")] }, runs);
+  assert.ok(none.warnings.some((w) => w.includes("できることを一括登録")));
+});

@@ -15,7 +15,6 @@ export type PlanContext = {
 
 /** 日々のスケジュールの自動作成（送迎・時間割・体操等の担当）。純粋関数で、保存はしない。 */
 export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: DailyDetail; warnings: string[] } {
-  const { store } = ctx;
   const staff = ctx.staff.filter((s) => s.status === "在籍");
   const clients = new Map(ctx.clients.map((c) => [c.id, c]));
   const vehicles = ctx.vehicles.filter((v) => v.active);
@@ -86,6 +85,33 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
   runs.push(...leftovers.values());
 
   // ---- 機能訓練・整体の時間割（到着順） ----
+  const tr = autoPlanTraining(detail, ctx, runs);
+  const training = tr.training;
+  warnings.push(...tr.warnings);
+
+  // ---- 体操・メディカルケアFIT ----
+  const staffLite = staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), sortOrder: s.sort_order }));
+  const d = planDuties({ staff: staffLite, codeOf: (id) => codeOf.get(id), runs, training });
+  warnings.push(...d.warnings);
+
+  return { detail: { ...detail, runs, training, duties: d.duties }, warnings: [...new Set(warnings)] };
+}
+
+/**
+ * 整体・個別機能訓練の時間割と担当だけを自動で作る（送迎はそのまま）。
+ * 利用者は送迎の到着順（朝迎車・昼迎車の乗車順）に早い枠から入れ、
+ * 担当は「整体」「個別機能訓練」ができる出勤者から、前回と同じ人を避け、担当数をならして選ぶ。
+ */
+export function autoPlanTraining(detail: DailyDetail, ctx: PlanContext, runs: DailyRun[]): { training: DailyTraining[]; warnings: string[] } {
+  const { store } = ctx;
+  const staff = ctx.staff.filter((s) => s.status === "在籍");
+  const clients = new Map(ctx.clients.map((c) => [c.id, c]));
+  const codeOf = new Map(detail.shifts.map((s) => [s.staff_id, s.code]));
+  const works = (id: number) => shiftWorks(codeOf.get(id));
+  const canTrain = (s: Staff) => splitList(s.skills).some((k) => (TRAINING_SKILLS as string[]).includes(k));
+  const warnings: string[] = [];
+  if (!staff.some(canTrain)) warnings.push("「整体」「個別機能訓練」ができるスタッフが登録されていません（スタッフ →「できることを一括登録」で設定してください）。");
+
   const arrivalOrder = (run: RunKind) => {
     const order = new Map<number, number>();
     runs
@@ -95,29 +121,23 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
       );
     return order;
   };
-  const history = ctx.history.training;
   const training: DailyTraining[] = [];
   for (const session of ["am", "pm"] as const) {
-    const ids = (session === "am" ? amIds : pmIds).filter((id) => clients.get(id)!.needs_training);
+    const ids = detail.attendance
+      .filter((a) => a.session === session && a.status === "present" && clients.get(a.client_id)?.needs_training)
+      .map((a) => a.client_id);
     const order = arrivalOrder(session === "am" ? "morning" : "noon_pick");
     ids.sort((a, b) => (order.get(a) ?? 1e6) - (order.get(b) ?? 1e6) || a - b);
-    const trainers = staff
-      .filter((s) => skills(s.id).some((k) => TRAINING_SKILLS.includes(k as (typeof TRAINING_SKILLS)[number])) && works(s.id)[session])
-      .map((s) => ({ id: s.id, sortOrder: s.sort_order }));
+    const trainers = staff.filter((s) => canTrain(s) && works(s.id)[session]).map((s) => ({ id: s.id, sortOrder: s.sort_order }));
     const slots = splitList(session === "am" ? store.am_slots : store.pm_slots);
-    const { result, overflow } = planTraining({ clientIds: ids, slots, capacity: store.slot_capacity, staff: trainers, history });
-    if (ids.length && trainers.length === 0) warnings.push(`${session === "am" ? "午前" : "午後"}: 機能訓練・整体を担当できる出勤者がいません。`);
-    if (overflow.length) warnings.push(`${session === "am" ? "午前" : "午後"}: 時間枠が足りず ${overflow.length} 名の時間が未定です。`);
+    const { result, overflow } = planTraining({ clientIds: ids, slots, capacity: store.slot_capacity, staff: trainers, history: ctx.history.training });
+    const label = session === "am" ? "午前" : "午後";
+    if (ids.length && trainers.length === 0) warnings.push(`${label}: 整体・個別機能訓練を担当できる出勤者がいません。`);
+    if (overflow.length) warnings.push(`${label}: 時間枠が足りず ${overflow.length} 名の時間が未定です。`);
     for (const id of ids) {
       const a = result.get(id)!;
       training.push({ session, client_id: id, slot_time: a.slot ?? "", staff_id: a.staffId });
     }
   }
-
-  // ---- 体操・メディカルケアFIT ----
-  const staffLite = staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), sortOrder: s.sort_order }));
-  const d = planDuties({ staff: staffLite, codeOf: (id) => codeOf.get(id), runs, training });
-  warnings.push(...d.warnings);
-
-  return { detail: { ...detail, runs, training, duties: d.duties }, warnings: [...new Set(warnings)] };
+  return { training, warnings };
 }

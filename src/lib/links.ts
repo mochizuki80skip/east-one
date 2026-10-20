@@ -8,6 +8,8 @@ export const links = {
   home: () => "/",
   staff: (store?: number, all?: boolean) => q("/staff/", { store, all: all ? 1 : undefined }),
   staffEdit: (id?: number) => q("/staff/edit/", { id }),
+  /** できることの一括登録（id はいま登録した人。行を目立たせる） */
+  staffSkills: (store?: number, id?: number) => q("/staff/skills/", { store, id }),
   careManagers: () => "/caremanagers/",
   daily: (store: number, date: string) => q("/store/daily/", { store, date }),
   dailyPrint: (store: number, date: string) => q("/store/daily/print/", { store, date }),

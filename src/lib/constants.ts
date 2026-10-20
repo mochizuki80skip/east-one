@@ -49,6 +49,15 @@ export function normalizeSkills(list: string[]): string[] {
   return [...new Set(list.flatMap((k) => (k in OLD_SKILLS ? (OLD_SKILLS[k] ? [OLD_SKILLS[k]!] : []) : [k])))];
 }
 
+/** 資格・役職から考えられる「できること」（一括登録の「役職からおすすめを入れる」で足すだけ。あとで外せる） */
+export function suggestedSkills(role: string): Skill[] {
+  const out: Skill[] = [];
+  if (role.includes("機能訓練指導員")) out.push("整体", "個別機能訓練");
+  if (role.includes("看護師")) out.push("血圧測定");
+  if (role.includes("ドライバー")) out.push("運転");
+  return out;
+}
+
 /** 送迎の運転担当になれるスキル */
 export const DRIVE_SKILL: Skill = "運転";
 /** 機能訓練・整体の時間割の担当になれるスキル */
