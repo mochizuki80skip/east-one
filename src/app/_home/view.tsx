@@ -10,6 +10,7 @@ import { currentYm, formatDateJa, todayStr } from "@/lib/date";
 import { Card, Notice, PageTitle, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 import { Loading } from "@/components/Loading";
 import { useLoad } from "@/components/useLoad";
+import UpdateBanner from "@/components/UpdateBanner";
 
 export default function HomeView() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function HomeView() {
   return (
     <div className="space-y-6">
       <PageTitle sub={`今日: ${formatDateJa(today)}`}>店舗一覧</PageTitle>
+      <UpdateBanner />
 
       {data.length === 0 && (
         <Notice>
