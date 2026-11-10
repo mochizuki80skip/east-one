@@ -18,9 +18,11 @@ import {
   type RunKind,
   type Session,
 } from "@/lib/constants";
-import type { DailyDetail, DailyRun } from "@/lib/types";
+import type { DailyAttendance, DailyDetail, DailyRun } from "@/lib/types";
+import { syncAttendance } from "@/lib/attendance";
+import { noonRows, noonText } from "@/lib/noon";
 import { dailyReportRow, reasonsTsv, reportRowTsv } from "@/lib/daily-report";
-import { freeStaffBlocks, qualificationSummary } from "@/lib/staffing";
+import { qualificationSummary } from "@/lib/staffing";
 import { autoPlanDaily, autoPlanTraining, type PlanContext } from "@/lib/daily-plan";
 import { saveDaily } from "@/lib/data";
 import { links } from "@/lib/links";
@@ -40,6 +42,8 @@ type VehicleLite = { id: number; name: string; capacity: number; driverIds: numb
 
 type Props = {
   initial: DailyDetail;
+  /** 曜日別利用者の枠から作った、この日の出席予定 */
+  scheduled: DailyAttendance[];
   /** 自動作成に使うデータ（店舗・スタッフ・利用者・車両・ルート・過去の担当） */
   planContext: PlanContext;
   slots: { am: string[]; pm: string[] };
@@ -59,7 +63,7 @@ let keySeq = 0;
 const newKey = () => `n${Date.now()}_${keySeq++}`;
 const renumber = (riders: DailyRun["riders"]) => riders.map((r, i) => ({ ...r, seq: i + 1 }));
 
-export default function DailyEditor({ initial, planContext, slots, staff, clients, vehicles }: Props) {
+export default function DailyEditor({ initial, scheduled, planContext, slots, staff, clients, vehicles }: Props) {
   const [d, setD] = useState<DailyDetail>(initial);
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
@@ -103,6 +107,17 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
     update((p) => ({ ...p, attendance: [...p.attendance, { client_id: cid, session, status: "present", reason: "", extra: 1, note: "" }] }));
   const removeExtra = (cid: number, session: Session) =>
     update((p) => removeFromPlans({ ...p, attendance: p.attendance.filter((a) => !(a.client_id === cid && a.session === session)) }, cid, session));
+  /** 保存済みの出席予定と、いまの曜日別利用者の枠との違い */
+  const attSync = syncAttendance(d.attendance, scheduled);
+  const resyncAttendance = () => {
+    update((p) => {
+      const r = syncAttendance(p.attendance, scheduled);
+      let next = { ...p, attendance: r.attendance };
+      for (const a of r.removed) next = removeFromPlans(next, a.client_id, a.session);
+      return next;
+    });
+    setMsg(`曜日別利用者に合わせました（追加 ${attSync.added.length}名 / 外した ${attSync.removed.length}名）。送迎・時間割は ⚡ 自動作成 で作り直してください。`);
+  };
   const presentIds = (session: Session) => d.attendance.filter((a) => a.session === session && a.status === "present").map((a) => a.client_id);
 
   // ---------- 送迎 ----------
@@ -167,6 +182,8 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
     staff.filter((s) => s.skills.includes(DRIVE_SKILL) && (isNoonRun(run) ? works(s.id).am || works(s.id).pm : works(s.id)[RUN_INFO[run].session]));
   const escortCands = (run: RunKind) => staff.filter((s) => (isNoonRun(run) ? works(s.id).am || works(s.id).pm : works(s.id)[RUN_INFO[run].session]));
 
+  const noon = noonRows(d.runs);
+
   // ---------- 時間割 ----------
   const slotIndex = (session: Session, t: string) => {
     const i = slots[session].indexOf(t);
@@ -180,7 +197,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
     update((p) => ({ ...p, training: p.training.filter((t) => !(t.client_id === cid && t.session === session)) }));
   const trainers = (session: Session) => staff.filter((s) => hasSkill(s, TRAINING_SKILLS) && works(s.id)[session]);
 
-  // ---------- 体操・メディカルケアFIT ----------
+  // ---------- 体操 ----------
   const dutyOf = (session: Session, duty: Duty) => d.duties.find((x) => x.session === session && x.duty === duty)?.staff_id ?? null;
   const setDuty = (session: Session, duty: Duty, staffId: number | null) =>
     update((p) => ({
@@ -188,13 +205,11 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
       duties: [...p.duties.filter((x) => !(x.session === session && x.duty === duty)), { session, duty, staff_id: staffId }],
     }));
 
-  // ---------- 空いているスタッフ・担当業務 ----------
-  const blocks = freeStaffBlocks({ staff, codeOf: (id) => codeOf.get(id), slots, runs: d.runs, training: d.training, duties: d.duties });
+  // ---------- 担当業務 ----------
   const taskOf = (id: number) => d.tasks.find((t) => t.staff_id === id)?.task ?? "";
   const setTask = (id: number, task: string) =>
     update((p) => ({ ...p, tasks: [...p.tasks.filter((t) => t.staff_id !== id), { staff_id: id, task }] }));
   const onDutyStaff = staff.filter((s) => works(s.id).am || works(s.id).pm);
-  const freeCount = (id: number) => blocks.filter((b) => b.free.includes(id)).length;
 
   // ---------- 操作 ----------
   const auto = () => {
@@ -207,7 +222,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
       setMsg("自動作成しました。内容を確認・手直しして保存してください。");
     });
   };
-  /** 整体・個別機能訓練の時間割と担当だけを作り直す（送迎・体操等はそのまま） */
+  /** 整体・個別機能訓練の時間割と担当だけを作り直す（送迎・体操はそのまま） */
   const autoTraining = () => {
     if (d.training.length && !window.confirm("整体・個別機能訓練の時間と担当を作り直します。手で直した内容は消えます。よろしいですか？")) return;
     start(async () => {
@@ -215,7 +230,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
       update((p) => ({ ...p, training: r.training }));
       setWarnings(r.warnings);
       const n = r.training.filter((t) => t.staff_id != null).length;
-      setMsg(`整体・個別機能訓練の担当を自動で振り分けました（${n}/${r.training.length}名）。確認して保存してください。`);
+      setMsg(`整体の担当を自動で振り分けました（${n}/${r.training.length}名）。確認して保存してください。`);
     });
   };
   const noTrainerRegistered = !staff.some((s) => hasSkill(s, TRAINING_SKILLS));
@@ -361,7 +376,7 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
             );
           })}
         </div>
-        <p className="mt-1 text-xs text-slate-500">🚗=運転 🤝=添乗 ✋=整体・個別機能訓練 🤸=体操・メディカルケアFIT</p>
+        <p className="mt-1 text-xs text-slate-500">🚗=運転 🤝=添乗 ✋=整体 🤸=体操</p>
       </section>
 
       {/* 2. 利用者 */}
@@ -369,6 +384,20 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
         <h2 className="mb-2 font-bold">
           2. 利用者の出欠 <span className="text-sm font-normal text-slate-500">お休みにすると送迎と時間割から外れます。メモは月次報告の材料になります。</span>
         </h2>
+        {(attSync.added.length > 0 || attSync.removed.length > 0) && (
+          <div className="no-print mb-3 flex flex-wrap items-center gap-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span>
+              この日の出席予定が、いまの「曜日別利用者」の登録と違います（
+              {attSync.added.length > 0 && `登録にある方 ${attSync.added.map((a) => `${cname(a.client_id)}（${a.session === "am" ? "午前" : "午後"}）`).join("・")} が入っていません`}
+              {attSync.added.length > 0 && attSync.removed.length > 0 && "／"}
+              {attSync.removed.length > 0 && `登録に無い方 ${attSync.removed.map((a) => `${cname(a.client_id)}（${a.session === "am" ? "午前" : "午後"}）`).join("・")} が入っています`}
+              ）。
+            </span>
+            <button onClick={resyncAttendance} className={btnPrimary}>
+              曜日別利用者に合わせる
+            </button>
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-2">
           {SESSIONS.map((sess) => {
             const rows = d.attendance.filter((a) => a.session === sess.key);
@@ -578,6 +607,45 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
                     ))}
                   </div>
                 )}
+                {rk.key === "noon_pick" && noon.length > 0 && (
+                  <div className="mt-3">
+                    <h3 className="mb-1 font-semibold">
+                      昼送迎のまとめ <span className="text-xs font-normal text-slate-500">車両ごとに送りと迎えを1つにまとめた表示です（印刷もこの形になります）。</span>
+                    </h3>
+                    <table className="w-full max-w-4xl border text-sm">
+                      <thead>
+                        <tr>
+                          <th className={th}>車両</th>
+                          <th className={th}>運転・添乗</th>
+                          <th className={th}>時刻</th>
+                          <th className={th}>昼送迎</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {noon.map((r, i) => {
+                          const t = noonText(r.drop.map(cname), r.pick.map(cname));
+                          return (
+                            <tr key={i}>
+                              <td className={`${td} whitespace-nowrap font-semibold`}>{vname(r.vehicle_id)}</td>
+                              <td className={`${td} whitespace-nowrap text-xs`}>
+                                {r.driver_ids.map((x) => sname(x)).join("・")}
+                                {r.escort_ids.length > 0 && <div>添乗: {r.escort_ids.map((x) => sname(x)).join("・")}</div>}
+                              </td>
+                              <td className={`${td} whitespace-nowrap text-xs`}>
+                                <div>{r.drop_time}</div>
+                                <div>{r.pick_time}</div>
+                              </td>
+                              <td className={td}>
+                                <div>{t.drop}</div>
+                                <div>{t.pick}</div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -595,12 +663,12 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
             ⚡ 整体の担当だけ自動で振り分け
           </button>
           <span className="text-xs text-slate-500">
-            送迎の到着順に早い時間から入れ、「整体」「個別機能訓練」ができる出勤者に、前回と同じ人を避けて人数がかたよらないように振り分けます（送迎・体操等は変えません）。
+            送迎の到着順に早い時間から入れ、できることで「整体」にチェックがある出勤者だけに、前回と同じ人を避けて人数がかたよらないように振り分けます（送迎・体操は変えません）。
           </span>
         </div>
         {noTrainerRegistered && (
           <p className="no-print mb-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            「整体」「個別機能訓練」ができるスタッフが登録されていないため、担当を振り分けられません。{" "}
+            「整体」にチェックがあるスタッフがいないため、担当を振り分けられません。{" "}
             <Link href={links.staffSkills(d.store_id)} className="font-semibold text-brand-700 underline">
               できることを一括登録 →
             </Link>
@@ -691,10 +759,10 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
         </div>
       </section>
 
-      {/* 5. 体操・メディカルケアFIT */}
+      {/* 5. 体操 */}
       <section className="rounded-lg border bg-white p-4">
         <h2 className="mb-2 font-bold">
-          5. 体操・メディカルケアFIT の担当{" "}
+          5. 体操の担当{" "}
           <span className="text-sm font-normal text-slate-500">自動作成では、昼送車（午前）・昼迎車（午後）の運転・添乗の人を避けて選びます。</span>
         </h2>
         <table className="border text-sm">
@@ -727,73 +795,29 @@ export default function DailyEditor({ initial, planContext, slots, staff, client
         </table>
       </section>
 
-      {/* 6. 空いているスタッフ・担当業務 */}
+      {/* 6. 担当業務 */}
       <section className="rounded-lg border bg-white p-4">
         <h2 className="mb-2 font-bold">
-          6. 空いているスタッフと担当業務{" "}
-          <span className="text-sm font-normal text-slate-500">送迎・時間割・体操等の担当が入っていない出勤者を、時間帯ごとに表示します。</span>
+          6. 担当業務 <span className="text-sm font-normal text-slate-500">各自の担当（事務・清掃など）があれば入れてください。印刷時に担当業務欄へ載ります。</span>
         </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <table className="w-full border text-sm">
-            <thead>
-              <tr>
-                <th className={th}>時間帯</th>
-                <th className={th}>空いているスタッフ</th>
+        <table className="w-full max-w-3xl border text-sm">
+          <thead>
+            <tr>
+              <th className={th}>スタッフ</th>
+              <th className={th}>担当業務</th>
+            </tr>
+          </thead>
+          <tbody>
+            {onDutyStaff.map((s) => (
+              <tr key={s.id}>
+                <td className={`${td} whitespace-nowrap`}>{s.name}</td>
+                <td className={td}>
+                  <input value={taskOf(s.id)} onChange={(e) => setTask(s.id, e.target.value)} placeholder="例: 週報 9:30〜10:30、血圧測定、事務、清掃" className={`${input} w-full`} />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {blocks.map((b) => (
-                <tr key={b.key}>
-                  <td className={`${td} whitespace-nowrap text-xs`}>{b.label}</td>
-                  <td className={td}>
-                    {b.free.length === 0 ? (
-                      <span className="text-xs text-slate-400">なし</span>
-                    ) : (
-                      b.free.map((id) => (
-                        <span key={id} className="mr-1 inline-block rounded bg-emerald-50 px-1.5 text-xs text-emerald-800">
-                          {sname(id)}
-                        </span>
-                      ))
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div>
-            <table className="w-full border text-sm">
-              <thead>
-                <tr>
-                  <th className={th}>スタッフ</th>
-                  <th className={th}>空き</th>
-                  <th className={th}>担当業務（空き時間の作業・各自の担当）</th>
-                </tr>
-              </thead>
-              <tbody>
-                {onDutyStaff
-                  .slice()
-                  .sort((a, b) => freeCount(b.id) - freeCount(a.id))
-                  .map((s) => (
-                    <tr key={s.id}>
-                      <td className={`${td} whitespace-nowrap`}>{s.name}</td>
-                      <td className={`${td} text-center text-xs`}>
-                        {freeCount(s.id)}/{blocks.filter((b) => works(s.id)[b.session]).length}
-                      </td>
-                      <td className={td}>
-                        <input
-                          value={taskOf(s.id)}
-                          onChange={(e) => setTask(s.id, e.target.value)}
-                          placeholder="例: 週報 9:30〜10:30、血圧測定、事務、清掃"
-                          className={`${input} w-full`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-            <p className="mt-1 text-xs text-slate-500">「空き」は、その人が勤務している時間帯のうち担当が入っていない数です。印刷時に担当業務欄へ載ります。</p>
-          </div>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       {/* 7. 特記事項 */}

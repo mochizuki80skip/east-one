@@ -89,7 +89,7 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
   const training = tr.training;
   warnings.push(...tr.warnings);
 
-  // ---- 体操・メディカルケアFIT ----
+  // ---- 体操 ----
   const staffLite = staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), sortOrder: s.sort_order }));
   const d = planDuties({ staff: staffLite, codeOf: (id) => codeOf.get(id), runs, training });
   warnings.push(...d.warnings);
@@ -100,7 +100,7 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
 /**
  * 整体・個別機能訓練の時間割と担当だけを自動で作る（送迎はそのまま）。
  * 利用者は送迎の到着順（朝迎車・昼迎車の乗車順）に早い枠から入れ、
- * 担当は「整体」「個別機能訓練」ができる出勤者から、前回と同じ人を避け、担当数をならして選ぶ。
+ * 担当は「整体」にチェックがある出勤者だけから、前回と同じ人を避け、担当数をならして選ぶ（個別機能訓練だけの人は入れない）。
  */
 export function autoPlanTraining(detail: DailyDetail, ctx: PlanContext, runs: DailyRun[]): { training: DailyTraining[]; warnings: string[] } {
   const { store } = ctx;
@@ -110,7 +110,7 @@ export function autoPlanTraining(detail: DailyDetail, ctx: PlanContext, runs: Da
   const works = (id: number) => shiftWorks(codeOf.get(id));
   const canTrain = (s: Staff) => splitList(s.skills).some((k) => (TRAINING_SKILLS as string[]).includes(k));
   const warnings: string[] = [];
-  if (!staff.some(canTrain)) warnings.push("「整体」「個別機能訓練」ができるスタッフが登録されていません（スタッフ →「できることを一括登録」で設定してください）。");
+  if (!staff.some(canTrain)) warnings.push("「整体」ができるスタッフが登録されていません（スタッフ →「できることを一括登録」で「整体」にチェックしてください）。");
 
   const arrivalOrder = (run: RunKind) => {
     const order = new Map<number, number>();
@@ -132,7 +132,7 @@ export function autoPlanTraining(detail: DailyDetail, ctx: PlanContext, runs: Da
     const slots = splitList(session === "am" ? store.am_slots : store.pm_slots);
     const { result, overflow } = planTraining({ clientIds: ids, slots, capacity: store.slot_capacity, staff: trainers, history: ctx.history.training });
     const label = session === "am" ? "午前" : "午後";
-    if (ids.length && trainers.length === 0) warnings.push(`${label}: 整体・個別機能訓練を担当できる出勤者がいません。`);
+    if (ids.length && trainers.length === 0) warnings.push(`${label}: 整体ができる出勤者がいません。`);
     if (overflow.length) warnings.push(`${label}: 時間枠が足りず ${overflow.length} 名の時間が未定です。`);
     for (const id of ids) {
       const a = result.get(id)!;

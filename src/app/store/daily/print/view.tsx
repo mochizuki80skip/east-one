@@ -9,7 +9,8 @@ import { Loading } from "@/components/Loading";
 import { useLoad } from "@/components/useLoad";
 import { useQuery } from "@/components/useQuery";
 import { DUTIES, RUNS, SESSIONS, splitList, type RunKind, type Session } from "@/lib/constants";
-import { freeStaffBlocks, qualificationSummary } from "@/lib/staffing";
+import { qualificationSummary } from "@/lib/staffing";
+import { noonRows, noonText } from "@/lib/noon";
 import PrintButton from "@/components/PrintButton";
 
 const TIMETABLE_ROWS = 20;
@@ -38,7 +39,6 @@ export default function DailyPrintView() {
     lite.filter((s) => d.shifts.some((x) => x.staff_id === s.id)),
     (id) => codeOf.get(id),
   );
-  const blocks = freeStaffBlocks({ staff: lite, codeOf: (id) => codeOf.get(id), slots, runs: d.runs, training: d.training, duties: d.duties });
   const absent = d.attendance.filter((a) => a.status === "absent");
   const present = (s: Session) => d.attendance.filter((a) => a.session === s && a.status === "present").length;
   const tasks = d.tasks.filter((t) => t.task.trim());
@@ -71,6 +71,48 @@ export default function DailyPrintView() {
               </tr>
             ))}
             {runs.length === 0 && (
+              <tr>
+                <td className={`${cell} text-slate-400`}>なし</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  /** 昼送迎: 車両ごとに 1 つのセルへ「送り：A→B」「迎え：→C→D」でまとめる */
+  const noonTable = () => {
+    const rows = noonRows(d.runs);
+    return (
+      <div className="mb-[2mm]">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[11px] font-bold">昼送迎</span>
+          <span className="text-[8px] text-slate-600">昼送車（午前利用者のお送り）・昼迎車（午後利用者のお迎え）</span>
+        </div>
+        <table className="w-full border-collapse text-[9px] leading-tight">
+          <tbody>
+            {rows.map((r, i) => {
+              const t = noonText(r.drop.map(cn), r.pick.map(cn));
+              return (
+                <tr key={i}>
+                  <td className={`${cell} w-[15mm] font-semibold`}>{r.vehicle_id ? vehicles.get(r.vehicle_id)?.name : "未定"}</td>
+                  <td className={`${cell} w-[13mm]`}>
+                    {r.driver_ids.map(sn).join("・")}
+                    {r.escort_ids.length > 0 && <div className="text-[8px]">添:{r.escort_ids.map(sn).join("・")}</div>}
+                  </td>
+                  <td className={`${cell} w-[9mm] font-bold`}>
+                    <div>{r.drop_time}</div>
+                    <div>{r.pick_time}</div>
+                  </td>
+                  <td className={cell}>
+                    <div>{t.drop}</div>
+                    <div>{t.pick}</div>
+                  </td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
               <tr>
                 <td className={`${cell} text-slate-400`}>なし</td>
               </tr>
@@ -188,7 +230,11 @@ export default function DailyPrintView() {
 
         {/* 下段 */}
         <div className="grid flex-1 grid-cols-[92mm_1fr_60mm] gap-[2mm] border-t-2 border-black pt-[1.5mm]">
-          <div>{RUNS.map((r) => runTable(r.key))}</div>
+          <div>
+            {runTable("morning")}
+            {noonTable()}
+            {runTable("evening")}
+          </div>
           <div className="grid grid-cols-2 gap-[2mm]">
             {timetable("am")}
             {timetable("pm")}
@@ -218,19 +264,6 @@ export default function DailyPrintView() {
                 ))}
               </tbody>
             </table>
-            <div>
-              <div className="text-[10px] font-bold">空いているスタッフ</div>
-              <table className="w-full border-collapse text-[8px] leading-tight">
-                <tbody>
-                  {blocks.map((b) => (
-                    <tr key={b.key}>
-                      <td className={`${cell} w-[17mm] whitespace-nowrap`}>{b.label.replace("体操・メディカルケアFIT", "体操等")}</td>
-                      <td className={cell}>{b.free.map((id) => sn(id)).join(" ") || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
             <div className="flex-1">
               <div className="text-[10px] font-bold">担当業務</div>
               <div className="min-h-[15mm] border border-black p-[1mm] text-[9px] leading-tight">

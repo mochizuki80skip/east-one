@@ -96,3 +96,28 @@ test("曜日別出席リスト: 何も読めないときは理由を返す", () 
   assert.equal(r.clients.length, 0);
   assert.ok(r.hint);
 });
+
+test("曜日別出席リスト: 見出しなしで、月曜の列に誰もいなくても火曜以降の曜日がずれない", () => {
+  // B列（月曜の名前の列）から、名前の行だけを貼り付け。月曜は空
+  const line = ["", "", "", "", "", "", "朝日花子", "", "要介護1", "女", "91", "", "", "", "", "", "", "", "夕月太郎", "", "要支援2", "男", "80", ""].join("\t");
+  const r = parseWeeklyList(line, "am");
+  assert.deepEqual(r.sessions, ["am"]);
+  assert.deepEqual(r.clients.find((c) => c.name === "朝日花子")!.slots, [{ weekday: 2, session: "am" }]);
+  assert.deepEqual(r.clients.find((c) => c.name === "夕月太郎")!.slots, [{ weekday: 4, session: "am" }]);
+});
+
+test("曜日別出席リスト: 見出しありは午前・午後の両方を「貼り付けた時間帯」として返す", () => {
+  assert.deepEqual(parseWeeklyList(fullSheet.join("\n")).sessions, ["am", "pm"]);
+});
+
+import { syncAttendance } from "./attendance";
+
+test("出席予定を曜日別利用者に合わせる: お休みの記録と臨時利用は残し、枠に無い方は外す", () => {
+  const a = (client_id: number, session: "am" | "pm", extra = 0, status: "present" | "absent" = "present") => ({ client_id, session, status, reason: "", extra, note: "" });
+  const current = [a(1, "am", 0, "absent"), a(2, "am"), a(9, "pm", 1)];
+  const scheduled = [a(1, "am"), a(3, "am")];
+  const r = syncAttendance(current, scheduled);
+  assert.deepEqual(r.attendance, [a(1, "am", 0, "absent"), a(3, "am"), a(9, "pm", 1)]);
+  assert.deepEqual(r.added.map((x) => x.client_id), [3]);
+  assert.deepEqual(r.removed.map((x) => x.client_id), [2]);
+});

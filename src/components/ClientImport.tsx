@@ -53,6 +53,7 @@ export default function ClientImport({ storeId, onDone }: { storeId: number; onD
                 setMsg({
                   text:
                     `読み取り ${r.found}名 / 新規登録 ${r.created}名 / 更新 ${r.updated}名` +
+                    (r.removed ? ` / 貼り付けに名前が無かった ${r.removed}名は、その時間帯の曜日枠を外しました` : "") +
                     (r.skipped ? ` / 名前が空欄の行 ${r.skipped}件は取り込んでいません` : ""),
                 });
                 setTsv("");

@@ -36,6 +36,8 @@ export type ImportedClient = {
 
 export type WeeklyParseResult = {
   clients: ImportedClient[];
+  /** 貼り付けに含まれていた午前・午後（取り込みでは、ここに入っている時間帯の曜日枠だけを置き換える） */
+  sessions: Session[];
   /** 名前が空欄で介護度だけある行の数 */
   skipped: number;
   /** 読み取れなかったときの理由 */
@@ -56,6 +58,7 @@ const isTotalRow = (r: string[]) => r[0] === "計" || r.some((c) => c === "総�
 export function parseWeeklyList(tsv: string, defaultSession?: Session): WeeklyParseResult {
   const data = rows(tsv);
   const byName = new Map<string, ImportedClient>();
+  const sessions = new Set<Session>();
   let skipped = 0;
 
   const add = (rawName: string, cells: string[], base: number, weekday: number, session: Session) => {
@@ -91,6 +94,7 @@ export function parseWeeklyList(tsv: string, defaultSession?: Session): WeeklyPa
         else if (data[k].includes("午後")) session = "pm";
       }
       session ??= defaultSession ?? (bi === 0 ? "am" : "pm");
+      sessions.add(session);
       // 曜日: 見出し行の 2 行上までにある「月」「火」…の位置。無ければ左から月〜土
       const weekdayAt = h.cols.map((col, k) => {
         for (let r = h.i - 1; r >= Math.max(0, h.i - 2); r--) {
@@ -118,18 +122,24 @@ export function parseWeeklyList(tsv: string, defaultSession?: Session): WeeklyPa
       .sort((a, b) => a - b)
       .filter((j, k, arr) => k === 0 || j - arr[k - 1] >= 6)
       .slice(0, 6);
-    if (bases.length === 0) return { clients: [], skipped: 0, hint: "名前と介護度の列が見つかりませんでした。「月 火 水…」の見出し行から選択してコピーしてください。" };
-    if (!defaultSession) return { clients: [], skipped: 0, hint: "見出しが含まれていないため、午前か午後かが分かりません。「貼り付けた範囲」で午前・午後を選んでから取り込んでください。" };
+    if (bases.length === 0) return { clients: [], sessions: [], skipped: 0, hint: "名前と介護度の列が見つかりませんでした。「月 火 水…」の見出し行から選択してコピーしてください。" };
+    if (!defaultSession) return { clients: [], sessions: [], skipped: 0, hint: "見出しが含まれていないため、午前か午後かが分かりません。「貼り付けた範囲」で午前・午後を選んでから取り込んでください。" };
+    // 曜日は列の位置で決める（各曜日 6 列。月曜の列に誰もいなくても、火曜以降がずれないように）
+    const origin = bases[0] % 6;
+    sessions.add(defaultSession);
     for (const cells of data) {
       if (isTotalRow(cells)) break;
-      bases.forEach((base, k) => add(cells[base] ?? "", cells, base, k + 1, defaultSession));
+      bases.forEach((base) => {
+        const weekday = Math.floor((base - origin) / 6) + 1;
+        if (weekday >= 1 && weekday <= 6) add(cells[base] ?? "", cells, base, weekday, defaultSession);
+      });
     }
   }
 
   const clients = [...byName.values()];
   return clients.length
-    ? { clients, skipped }
-    : { clients, skipped, hint: "利用者の名前が見つかりませんでした。「月 火 水…」の見出し行から、午後の「計」の行までを選択してコピーしてください。" };
+    ? { clients, sessions: [...sessions], skipped }
+    : { clients, sessions: [...sessions], skipped, hint: "利用者の名前が見つかりませんでした。「月 火 水…」の見出し行から、午後の「計」の行までを選択してコピーしてください。" };
 }
 
 export type ImportedStaff = { name: string; role: string; employment: string };

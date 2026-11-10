@@ -39,6 +39,9 @@ export default function HeaderMenu() {
         <Link href="/caremanagers/" className="hover:underline underline-offset-4">
           ケアマネ
         </Link>
+        <Link href="/guide/" className="hover:underline underline-offset-4">
+          使い方
+        </Link>
         <Link href="/updates/" className="hover:underline underline-offset-4">
           更新のお知らせ
           {hasNew && <span className="ml-1 rounded bg-white px-1 text-[10px] font-bold text-red-600">NEW</span>}

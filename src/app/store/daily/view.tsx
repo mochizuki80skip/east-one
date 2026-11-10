@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { buildHistories, getDaily, getStore, listClients, listRoutes, listStaff, listVehicles } from "@/lib/data";
+import { buildHistories, getDaily, getStore, listClientsWithSlots, listRoutes, listStaff, listVehicles, scheduledAttendance } from "@/lib/data";
 import { addDays, formatDateJa } from "@/lib/date";
 import { splitList } from "@/lib/constants";
 import { links } from "@/lib/links";
@@ -18,7 +18,7 @@ export default function DailyView() {
     const [store, staff, clients, routes, vehicles, detail, history] = await Promise.all([
       getStore(sid),
       listStaff({ storeId: sid, activeOnly: true }),
-      listClients(sid, { includeEnded: true }),
+      listClientsWithSlots(sid, { includeEnded: true }),
       listRoutes(sid),
       listVehicles(sid),
       getDaily(sid, date),
@@ -51,6 +51,7 @@ export default function DailyView() {
       <DailyEditor
         key={`${sid}-${date}`}
         initial={detail}
+        scheduled={scheduledAttendance(clients, date)}
         planContext={{ store, staff, clients, vehicles, routes, history }}
         slots={{ am: splitList(store.am_slots), pm: splitList(store.pm_slots) }}
         staff={staff.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills), patterns: splitList(s.patterns) }))}

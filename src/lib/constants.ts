@@ -52,7 +52,8 @@ export function normalizeSkills(list: string[]): string[] {
 /** 資格・役職から考えられる「できること」（一括登録の「役職からおすすめを入れる」で足すだけ。あとで外せる） */
 export function suggestedSkills(role: string): Skill[] {
   const out: Skill[] = [];
-  if (role.includes("機能訓練指導員")) out.push("整体", "個別機能訓練");
+  // 整体は資格では決まらないので、おすすめには入れない（整体ができる人は手でチェックする）
+  if (role.includes("機能訓練指導員")) out.push("個別機能訓練");
   if (role.includes("看護師")) out.push("血圧測定");
   if (role.includes("ドライバー")) out.push("運転");
   return out;
@@ -60,8 +61,8 @@ export function suggestedSkills(role: string): Skill[] {
 
 /** 送迎の運転担当になれるスキル */
 export const DRIVE_SKILL: Skill = "運転";
-/** 機能訓練・整体の時間割の担当になれるスキル */
-export const TRAINING_SKILLS: Skill[] = ["整体", "個別機能訓練"];
+/** 時間割の整体担当になれるスキル（「個別機能訓練」だけの人は担当にしない） */
+export const TRAINING_SKILLS: Skill[] = ["整体"];
 
 /**
  * シフト記号。am / pm はその記号で午前・午後に勤務しているか。
@@ -186,11 +187,11 @@ export const RUN_KEYS: RunKind[] = RUNS.map((r) => r.key);
 export const isNoonRun = (r: RunKind) => r === "noon_drop" || r === "noon_pick";
 export const runLabel = (r: RunKind) => RUNS.find((x) => x.key === r)?.label ?? r;
 
-/** 体操・メディカルケアFIT の担当（午前・午後それぞれ） */
-export const DUTIES = ["体操", "メディカルケアFIT"] as const;
+/** 日々のスケジュールで決める担当（午前・午後それぞれ） */
+export const DUTIES = ["体操"] as const;
 export type Duty = (typeof DUTIES)[number];
 
-/** 保存済みの担当を今の名前にそろえる（以前の「メディカルケア」「FIT」は「メディカルケアFIT」にまとめる） */
+/** 保存済みの担当を今の担当にそろえる（今は無い担当＝メディカルケアFIT などは外す） */
 export function normalizeDuties<T extends { session: string; duty: string; staff_id: number | null }>(list: T[]): (T & { duty: Duty })[] {
   const out: (T & { duty: Duty })[] = [];
   for (const x of list) {

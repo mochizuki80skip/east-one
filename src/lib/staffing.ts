@@ -1,8 +1,7 @@
 /**
  * 日々の人員まわりの計算（純粋関数）。
  *  - 資格ごとの出勤人数（午前・午後）
- *  - 時間帯ごとに空いているスタッフの割り出し
- *  - 体操・メディカルケアFIT の担当の自動割り当て
+ *  - 体操の担当の自動割り当て
  */
 import { DUTIES, QUALIFICATIONS, shiftWorks, type Duty, type RunKind, type Session } from "./constants";
 import { inc, pickBest, TODAY_LOAD_WEIGHT } from "./pick";
@@ -32,59 +31,7 @@ export function qualificationSummary(staff: StaffLite[], codeOf: (id: number) =>
   };
 }
 
-// ---------------- 空いているスタッフ ----------------
-export type FreeBlock = { key: string; label: string; session: Session; free: number[]; busy: number[] };
-
-/**
- * 1 日を「送迎の便」「機能訓練・整体の時間枠」「体操・メディカルケアFIT」の時間帯に区切り、
- * その時間帯に勤務していて何も担当していないスタッフを返す。
- * 時間帯の並び: 朝迎車 → 午前の訓練枠 → 午前の体操等 → 昼送車 → 昼迎車 → 午後の体操等 → 午後の訓練枠 → 帰り送車
- */
-export function freeStaffBlocks(opts: {
-  staff: StaffLite[];
-  codeOf: (id: number) => string | undefined;
-  slots: { am: string[]; pm: string[] };
-  runs: RunLite[];
-  training: TrainingLite[];
-  duties: DutyLite[];
-}): FreeBlock[] {
-  const { staff, codeOf, slots, runs, training, duties } = opts;
-  const blocks: { key: string; label: string; session: Session; busy: Set<number> }[] = [];
-  const runBlock = (run: RunKind, label: string, session: Session) => {
-    const busy = new Set<number>();
-    for (const r of runs.filter((x) => x.run === run)) {
-      if (r.driver_id != null) busy.add(r.driver_id);
-      if (r.escort_id != null) busy.add(r.escort_id);
-    }
-    blocks.push({ key: run, label, session, busy });
-  };
-  const slotBlocks = (session: Session) => {
-    for (const slot of slots[session]) {
-      const busy = new Set(training.filter((t) => t.session === session && t.slot_time === slot && t.staff_id != null).map((t) => t.staff_id!));
-      blocks.push({ key: `${session}-${slot}`, label: `${session === "am" ? "午前" : "午後"} ${slot}`, session, busy });
-    }
-  };
-  const dutyBlock = (session: Session) => {
-    const busy = new Set(duties.filter((d) => d.session === session && d.staff_id != null).map((d) => d.staff_id!));
-    blocks.push({ key: `${session}-duty`, label: `${session === "am" ? "午前" : "午後"} 体操・メディカルケアFIT`, session, busy });
-  };
-
-  runBlock("morning", "朝迎車", "am");
-  slotBlocks("am");
-  dutyBlock("am");
-  runBlock("noon_drop", "昼送車", "am");
-  runBlock("noon_pick", "昼迎車", "pm");
-  dutyBlock("pm");
-  slotBlocks("pm");
-  runBlock("evening", "帰り送車", "pm");
-
-  return blocks.map((b) => {
-    const onDuty = staff.filter((s) => shiftWorks(codeOf(s.id))[b.session]).map((s) => s.id);
-    return { key: b.key, label: b.label, session: b.session, free: onDuty.filter((id) => !b.busy.has(id)), busy: [...b.busy] };
-  });
-}
-
-// ---------------- 体操・メディカルケアFIT ----------------
+// ---------------- 体操 ----------------
 /**
  * 午前・午後それぞれで担当を決める。
  *  - そのスキルを持つ出勤者から選ぶ（いなければ「体操」ができる人、それもいなければ未定）

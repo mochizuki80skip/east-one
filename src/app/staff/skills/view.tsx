@@ -103,7 +103,7 @@ function SkillMatrix({ staff, newId, onSaved }: { staff: Staff[]; newId: number;
   };
   const addSuggested = () => {
     setChecked((p) => Object.fromEntries(staff.map((s) => [s.id, ordered([...p[s.id], ...suggestedSkills(s.role)])])));
-    setMsg("資格・役職から考えられるものにチェックを足しました（機能訓練指導員 → 整体・個別機能訓練、看護師 → 血圧測定、ドライバー → 運転）。確認して保存してください。");
+    setMsg("資格・役職から考えられるものにチェックを足しました（機能訓練指導員 → 個別機能訓練、看護師 → 血圧測定、ドライバー → 運転。整体は資格で決まらないので、できる人に手でチェックしてください）。確認して保存してください。");
   };
 
   const save = () =>
@@ -207,7 +207,7 @@ function SkillMatrix({ staff, newId, onSaved }: { staff: Staff[]; newId: number;
         </table>
       </div>
       <p className="text-xs text-slate-500">
-        運転 → 送迎の運転者、整体・個別機能訓練 → 時間割の担当、体操・メディカルケアFIT → 体操等の担当、の自動振り分けに使います。0名の列は赤で表示します。
+        運転 → 送迎の運転者、整体 → 時間割の整体担当（整体にチェックがある人だけ）、体操 → 体操の担当、の自動振り分けに使います。個別機能訓練と整体は別々です。0名の列は赤で表示します。
       </p>
     </div>
   );

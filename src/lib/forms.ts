@@ -166,9 +166,9 @@ export async function submitClient(fd: FormData) {
 }
 
 export async function importClientsTsv(storeId: number, tsv: string, session?: Session) {
-  const { clients, skipped, hint } = parseWeeklyList(tsv, session);
-  if (clients.length === 0) return { found: 0, skipped, created: 0, updated: 0, hint };
-  const r = await importClients(storeId, clients);
+  const { clients, sessions, skipped, hint } = parseWeeklyList(tsv, session);
+  if (clients.length === 0) return { found: 0, skipped, created: 0, updated: 0, removed: 0, hint };
+  const r = await importClients(storeId, clients, sessions);
   return { found: clients.length, skipped, hint, ...r };
 }
 

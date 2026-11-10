@@ -168,13 +168,13 @@ test("時間割: 枠が足りなければ未定として返す", () => {
 import { autoPlanTraining, type PlanContext } from "./daily-plan";
 import type { Client, DailyDetail, Staff, Store } from "./types";
 
-test("整体の担当だけ自動振り分け: 整体・個別機能訓練ができる出勤者だけに、送迎の到着順で振り分ける", () => {
+test("整体の担当だけ自動振り分け: 「整体」にチェックがある出勤者だけに、送迎の到着順で振り分ける", () => {
   const st = (id: number, skills: string): Staff =>
     ({ id, name: `S${id}`, status: "在籍", employment: "A", role: "", skills, days_per_week: 5, available_weekdays: "", note: "", sort_order: id, store_ids: "1" }) as Staff;
   const cl = (id: number, needs = 1): Client => ({ id, name: `C${id}`, needs_training: needs, uses_transport: 1, status: "利用中" }) as Client;
   const ctx: PlanContext = {
     store: { am_slots: "9:45,10:00", pm_slots: "14:05", slot_capacity: 2 } as Store,
-    staff: [st(1, "整体"), st(2, "個別機能訓練"), st(3, "運転"), st(4, "整体")],
+    staff: [st(1, "整体"), st(2, "整体,個別機能訓練"), st(3, "運転"), st(4, "整体"), st(5, "個別機能訓練")],
     clients: [cl(10), cl(11), cl(12), cl(13, 0)],
     vehicles: [],
     routes: [],
@@ -187,6 +187,7 @@ test("整体の担当だけ自動振り分け: 整体・個別機能訓練がで
       { staff_id: 2, code: "〇" },
       { staff_id: 3, code: "〇" },
       { staff_id: 4, code: "休" },
+      { staff_id: 5, code: "〇" },
     ],
     attendance: [present(10), present(11), present(12), present(13)],
   } as DailyDetail;
@@ -195,10 +196,39 @@ test("整体の担当だけ自動振り分け: 整体・個別機能訓練がで
   const { training, warnings } = autoPlanTraining(detail, ctx, runs);
   assert.deepEqual(training.map((t) => t.client_id), [12, 10, 11]); // 13 は機能訓練なし
   assert.deepEqual(training.map((t) => t.slot_time), ["9:45", "9:45", "10:00"]);
-  assert.ok(training.every((t) => t.staff_id === 1 || t.staff_id === 2)); // 運転のみの人・休みの人は入らない
+  assert.ok(training.every((t) => t.staff_id === 1 || t.staff_id === 2)); // 運転のみ・個別機能訓練のみ・休みの人は入らない
   assert.notEqual(training[0].staff_id, training[1].staff_id); // 同じ時間に同じ人が2人を見ない
   assert.deepEqual(warnings, []);
 
   const none = autoPlanTraining(detail, { ...ctx, staff: [st(3, "運転")] }, runs);
   assert.ok(none.warnings.some((w) => w.includes("できることを一括登録")));
+});
+
+import { noonRows, noonText } from "./noon";
+
+test("昼送迎: 車両ごとに送りと迎えを1つにまとめ、「送り：A→B」「迎え：→C→D」で表す", () => {
+  const run = (key: string, run: "noon_drop" | "noon_pick" | "morning", vehicle_id: number | null, driver_id: number | null, depart_time: string, ids: number[]) => ({
+    key,
+    run,
+    vehicle_id,
+    driver_id,
+    escort_id: null,
+    depart_time,
+    riders: ids.map((client_id, i) => ({ client_id, direction: (run === "noon_pick" ? "pickup" : "dropoff") as "pickup" | "dropoff", seq: i + 1 })),
+  });
+  const rows = noonRows([
+    run("m", "morning", 1, 5, "8:10", [9]),
+    run("a", "noon_drop", 1, 5, "11:00", [2, 1]),
+    run("b", "noon_pick", 2, 6, "13:20", [7]),
+    run("c", "noon_pick", 1, 5, "13:10", [3, 4]),
+  ]);
+  assert.deepEqual(
+    rows.map((r) => [r.vehicle_id, r.driver_ids, r.drop_time, r.pick_time, r.drop, r.pick]),
+    [
+      [1, [5], "11:00", "13:10", [2, 1], [3, 4]],
+      [2, [6], "", "13:20", [], [7]],
+    ],
+  );
+  assert.deepEqual(noonText(["山田", "佐藤"], ["鈴木", "田中"]), { drop: "送り：山田→佐藤", pick: "迎え：→鈴木→田中" });
+  assert.deepEqual(noonText([], ["鈴木"]), { drop: "送り：なし", pick: "迎え：→鈴木" });
 });

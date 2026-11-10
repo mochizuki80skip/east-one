@@ -168,7 +168,7 @@ export default function StaffForm({ staff, stores, defaultStoreId }: { staff?: S
               </label>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-500">「運転」は送迎の運転担当、「整体」「個別機能訓練」は時間割の担当の候補になります。</p>
+          <p className="mt-1 text-xs text-slate-500">「運転」は送迎の運転担当、「整体」は時間割の整体担当、「体操」は体操の担当の候補になります（「個別機能訓練」だけでは整体の担当にはなりません）。</p>
         </div>
         <div className="md:col-span-2">
           <label className={label}>勤務できる店舗</label>

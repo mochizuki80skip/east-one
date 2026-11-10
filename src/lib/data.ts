@@ -11,6 +11,7 @@
 import { api, type BatchOp } from "./api";
 import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, normalizeDuties, normalizeSkills, shiftWorks, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
+import { cmKey, type ImportedCareManager } from "./caremanager-import";
 import { normalizeName } from "./import";
 import { driverGroupOf, type TransportHistory } from "./transport";
 import type { TrainingHistory } from "./timetable";
@@ -18,6 +19,7 @@ import type {
   CareManager,
   Client,
   ClientSlot,
+  DailyAttendance,
   DailyDetail,
   DailyRun,
   MonthlyReport,
@@ -129,7 +131,7 @@ export async function importStaff(storeId: number, list: ImportedStaff[]): Promi
       }
       continue;
     }
-    const skills = st.role.includes("機能訓練指導員") ? "個別機能訓練,整体" : st.role === "ドライバー" ? "運転" : "";
+    const skills = st.role.includes("機能訓練指導員") ? "個別機能訓練" : st.role === "ドライバー" ? "運転" : "";
     // 勤務形態 A・B（常勤）は正社員、C・D（常勤以外）はパートとして仮に登録する（あとで変更可）
     const contract = st.employment === "A" || st.employment === "B" ? "正社員" : "パート";
     ops.push(
@@ -161,6 +163,41 @@ export async function listCareManagers(): Promise<CareManager[]> {
 }
 export async function saveCareManager(c: Omit<CareManager, "id"> & { id?: number }) {
   return saveOne("care_managers", c.id, c);
+}
+/**
+ * ケアマネ一覧の取り込み。同じ事業所・同じ名前の方は、空欄でない項目だけ上書きする。
+ * 事業所が空欄の行・事業所が未登録の方は、名前だけで同じ人か判断する（同名が 1 人のときだけ）。
+ */
+export async function importCareManagers(list: ImportedCareManager[]): Promise<{ created: number; updated: number }> {
+  const existing = await listCareManagers();
+  const byKey = new Map(existing.map((c) => [cmKey(c.office, c.name), c]));
+  const nameOnly = (name: string) => {
+    const same = existing.filter((c) => cmKey("", c.name) === cmKey("", name));
+    return same.length === 1 ? same[0] : undefined;
+  };
+  const ops: BatchOp[] = [];
+  let created = 0;
+  let updated = 0;
+  for (const cm of list) {
+    const cur = byKey.get(cmKey(cm.office, cm.name)) ?? (!cm.office || !nameOnly(cm.name)?.office ? nameOnly(cm.name) : undefined);
+    if (cur) {
+      ops.push(
+        put("care_managers", cur.id, {
+          ...cur,
+          office: cm.office || cur.office,
+          phone: cm.phone || cur.phone,
+          fax: cm.fax || cur.fax,
+          note: cm.note || cur.note,
+        }),
+      );
+      updated++;
+    } else {
+      ops.push(put("care_managers", null, { ...cm }));
+      created++;
+    }
+  }
+  await api.batch(ops);
+  return { created, updated };
 }
 export async function deleteCareManager(id: number) {
   const clients = await all<ClientWithSlots>("clients");
@@ -217,15 +254,30 @@ export async function deleteClient(id: number) {
   const monthly = await api.list("monthly", { prefix: `${id}:` });
   await api.batch([del("clients", id), ...monthly.map((d) => del("monthly", d.id))]);
 }
-/** 曜日別出席リストの取り込み。同じ名前の利用者は介護度などを更新し、曜日枠を置き換える。 */
-export async function importClients(storeId: number, list: ImportedClient[]): Promise<{ created: number; updated: number }> {
-  const existing = new Map((await listClientsWithSlots(storeId, { includeEnded: true })).map((c) => [normalizeName(c.name), c]));
+/**
+ * 曜日別出席リストの取り込み。
+ *  - 同じ名前の利用者は介護度などを更新し、貼り付けた時間帯（午前・午後）の曜日枠を置き換える
+ *    （午前だけ貼り付けたときは、午後の曜日枠はそのまま残す）
+ *  - 貼り付けた時間帯に名前が無かった利用者は、その時間帯の曜日枠を外す（やめた曜日が残らないように）
+ */
+export async function importClients(
+  storeId: number,
+  list: ImportedClient[],
+  sessions: Session[] = ["am", "pm"],
+): Promise<{ created: number; updated: number; removed: number }> {
+  const covered = new Set(sessions);
+  const all = await listClientsWithSlots(storeId, { includeEnded: true });
+  const existing = new Map(all.map((c) => [normalizeName(c.name), c]));
+  const keepOther = (c: ClientWithSlots) => c.slots.filter((x) => !covered.has(x.session));
   const ops: BatchOp[] = [];
   let created = 0;
   let updated = 0;
+  let removed = 0;
+  const imported = new Set<number>();
   for (const ic of list) {
     const cur = existing.get(ic.name);
     if (cur) {
+      imported.add(cur.id);
       ops.push(
         put("clients", cur.id, {
           ...cur,
@@ -234,7 +286,7 @@ export async function importClients(storeId: number, list: ImportedClient[]): Pr
           age: ic.age ?? cur.age,
           new_flag: ic.new_flag || cur.new_flag,
           status: cur.status === "終了" ? "利用中" : cur.status,
-          slots: ic.slots,
+          slots: sortSlots([...keepOther(cur), ...ic.slots.filter((x) => covered.has(x.session))]),
         }),
       );
       updated++;
@@ -258,14 +310,29 @@ export async function importClients(storeId: number, list: ImportedClient[]): Pr
           needs_training: 1,
           address: "",
           note: "",
-          slots: ic.slots,
+          slots: sortSlots(ic.slots),
         }),
       );
       created++;
     }
   }
+  for (const c of all) {
+    if (imported.has(c.id) || !c.slots.some((x) => covered.has(x.session))) continue;
+    ops.push(put("clients", c.id, { ...c, slots: keepOther(c) }));
+    removed++;
+  }
   await api.batch(ops);
-  return { created, updated };
+  return { created, updated, removed };
+}
+const sortSlots = (xs: { weekday: number; session: Session }[]) =>
+  [...xs].sort((a, b) => a.weekday - b.weekday || a.session.localeCompare(b.session));
+
+/** 曜日別利用者の枠から、その日の出席予定を作る（臨時利用・お休みの記録は呼び出し側で残す） */
+export function scheduledAttendance(clients: ClientWithSlots[], date: string): DailyAttendance[] {
+  const wd = new Date(`${date}T00:00:00`).getDay();
+  return clients
+    .filter((c) => c.status === "利用中")
+    .flatMap((c) => c.slots.filter((s) => s.weekday === wd).map((s) => ({ client_id: c.id, session: s.session, status: "present" as const, reason: "", extra: 0, note: "" })));
 }
 
 /** weekday|session -> 利用中の登録人数 */
@@ -348,10 +415,7 @@ export async function getDaily(storeId: number, date: string): Promise<DailyDeta
     };
   }
   // 未保存の日: 曜日別利用者枠から出席予定を作る
-  const wd = new Date(`${date}T00:00:00`).getDay();
-  const attendance = clients
-    .filter((c) => c.status === "利用中")
-    .flatMap((c) => c.slots.filter((s) => s.weekday === wd).map((s) => ({ client_id: c.id, session: s.session, status: "present" as const, reason: "", extra: 0, note: "" })));
+  const attendance = scheduledAttendance(clients, date);
   return { store_id: storeId, date, memo: "", saved: false, shifts, attendance, runs: [], training: [], duties: [], tasks: [] };
 }
 
