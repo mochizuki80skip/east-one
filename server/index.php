@@ -141,8 +141,22 @@ switch ($action) {
                 }
                 $id = check_id($rawId);
                 if (in_array($coll, NUMBERED, true)) $data['id'] = (int)$id;
+                // 版（rev）付きの保存: 画面を開いたあとに別の端末で保存されていたら、上書きせずに知らせる
+                $rev = null;
+                if (array_key_exists('rev', $op) && $op['rev'] !== null) {
+                    $sel = $pdo->prepare('SELECT data, updated_at FROM eo_docs WHERE coll = ? AND id = ?' . (is_mysql($pdo) ? ' FOR UPDATE' : ''));
+                    $sel->execute([$coll, $id]);
+                    $row = $sel->fetch();
+                    $current = $row ? (int)((json_decode($row['data'], true) ?: [])['_rev'] ?? 0) : 0;
+                    if ($current !== (int)$op['rev']) {
+                        $pdo->rollBack();
+                        json_out(['error' => '別のパソコン・端末で先に保存されています。', 'conflict' => ['c' => $coll, 'id' => $id, 'rev' => $current, 'updated_at' => $row['updated_at'] ?? null]], 409);
+                    }
+                    $rev = $current + 1;
+                    $data['_rev'] = $rev;
+                }
                 put_doc($pdo, $coll, $id, $data);
-                $results[] = ['c' => $coll, 'id' => $id];
+                $results[] = ['c' => $coll, 'id' => $id] + ($rev !== null ? ['rev' => $rev] : []);
             }
             $pdo->commit();
         } catch (Throwable $e) {

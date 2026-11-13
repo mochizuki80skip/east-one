@@ -59,6 +59,8 @@ export default function MonthlyEditView() {
         notes={notes}
         initialKeywords={report?.keywords ?? ""}
         initialBody={report?.body ?? ""}
+        initialRev={report?.rev ?? 0}
+        initialUpdatedAt={report?.updated_at ?? ""}
         hasApiKey={ai}
       />
     </div>

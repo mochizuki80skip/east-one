@@ -8,13 +8,16 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    /** 409（別の端末で先に保存）のときの、いまの版 */
+    public conflict?: { c: string; id: string; rev: number; updated_at: string | null },
   ) {
     super(message);
   }
 }
 
 export type Doc<T> = { id: string; data: T; updated_at: string };
-export type BatchOp = { op: "put"; c: string; id?: string | number | null; data: object } | { op: "delete"; c: string; id: string | number };
+/** rev を付けた保存は、サーバー上の版が rev と同じときだけ保存する（違えば 409） */
+export type BatchOp = { op: "put"; c: string; id?: string | number | null; data: object; rev?: number | null } | { op: "delete"; c: string; id: string | number };
 
 async function call<T>(action: string, opts: { query?: Record<string, string>; body?: unknown } = {}): Promise<T> {
   const q = new URLSearchParams({ action, ...(opts.query ?? {}) });
@@ -53,7 +56,7 @@ async function call<T>(action: string, opts: { query?: Record<string, string>; b
   }
   if (!res.ok) {
     if (res.status === 401 && action !== "login" && typeof window !== "undefined") window.dispatchEvent(new Event("eo-auth-required"));
-    throw new ApiError(json.error ?? `エラー（${res.status}）`, res.status);
+    throw new ApiError(json.error ?? `エラー（${res.status}）`, res.status, (json as { conflict?: ApiError["conflict"] }).conflict);
   }
   return json as T;
 }
@@ -78,7 +81,7 @@ export const api = {
   list: async <T>(c: string, f: { from?: string; to?: string; prefix?: string; suffix?: string } = {}) =>
     (await call<{ docs: Doc<T>[] }>("list", { query: { c, ...(f as Record<string, string>) } })).docs,
   get: async <T>(c: string, id: string | number) => (await call<{ doc: Doc<T> | null }>("get", { query: { c, id: String(id) } })).doc,
-  batch: async (ops: BatchOp[]) => (ops.length ? (await call<{ results: { c: string; id: string }[] }>("batch", { body: { ops } })).results : []),
+  batch: async (ops: BatchOp[]) => (ops.length ? (await call<{ results: { c: string; id: string; rev?: number }[] }>("batch", { body: { ops } })).results : []),
   /** 住所 → 緯度・経度（見つからなければ null） */
   geocode: async (q: string) => (await call<{ result: { lat: number; lng: number; title: string } | null }>("geocode", { body: { q } })).result,
   generate: (prompt: string) => call<{ engine: "claude" | "none"; text?: string; warning?: string }>("generate", { body: { prompt } }),

@@ -153,4 +153,6 @@ export type MonthlyReport = {
   keywords: string;
   body: string;
   updated_at: string;
+  /** 版（保存のたびに 1 増える）。別の端末での保存を見分けるのに使う */
+  rev: number;
 };

@@ -606,7 +606,7 @@ export async function monthAttendanceStats(storeId: number, ym: string): Promise
 
 export async function getMonthlyReport(clientId: number, ym: string): Promise<MonthlyReport | undefined> {
   const d = await api.get<Omit<MonthlyReport, "id" | "client_id" | "ym">>("monthly", `${clientId}:${ym}`);
-  return d ? { id: 0, client_id: clientId, ym, ...d.data, updated_at: d.updated_at } : undefined;
+  return d ? { id: 0, client_id: clientId, ym, ...d.data, updated_at: d.updated_at, rev: revOf(d.data) } : undefined;
 }
 export async function listMonthlyReports(ym: string): Promise<MonthlyReport[]> {
   return (await api.list<Omit<MonthlyReport, "id" | "client_id" | "ym">>("monthly", { suffix: `:${ym}` })).map((d) => ({
@@ -615,11 +615,19 @@ export async function listMonthlyReports(ym: string): Promise<MonthlyReport[]> {
     ym,
     ...d.data,
     updated_at: d.updated_at,
+    rev: revOf(d.data),
   }));
 }
-export async function saveMonthlyReport(clientId: number, ym: string, keywords: string, body: string) {
-  await api.batch([put("monthly", `${clientId}:${ym}`, { keywords, body })]);
+/**
+ * 月次報告を保存する。rev は画面を開いたとき（または前回保存したとき）の版。
+ * そのあと別のパソコン・端末で保存されていたら上書きせず、ApiError（status 409）になる。
+ * 保存できたら新しい版を返す。
+ */
+export async function saveMonthlyReport(clientId: number, ym: string, keywords: string, body: string, rev: number): Promise<number> {
+  const [r] = await api.batch([{ ...put("monthly", `${clientId}:${ym}`, { keywords, body }), rev } as BatchOp]);
+  return r?.rev ?? rev + 1;
 }
+const revOf = (data: unknown) => Number((data as { _rev?: number } | null)?._rev ?? 0);
 
 export async function counts() {
   const [stores, staff, clients] = await Promise.all([api.list("stores"), api.list("staff"), api.list("clients")]);
