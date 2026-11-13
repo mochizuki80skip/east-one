@@ -21,6 +21,9 @@ import {
 import type { DailyAttendance, DailyDetail, DailyRun } from "@/lib/types";
 import { syncAttendance } from "@/lib/attendance";
 import { noonRows, noonText } from "@/lib/noon";
+import { placeRider, sortRunByDistance } from "@/lib/dispatch";
+import type { Point } from "@/lib/geo";
+import DispatchBoard, { type BoardClient, type BoardVehicle } from "./DispatchBoard";
 import { dailyReportRow, reasonsTsv, reportRowTsv } from "@/lib/daily-report";
 import { qualificationSummary } from "@/lib/staffing";
 import { autoPlanDaily, autoPlanTraining, type PlanContext } from "@/lib/daily-plan";
@@ -37,8 +40,11 @@ type ClientLite = {
   uses_transport: boolean;
   needs_training: boolean;
   route: string;
+  wheelchair: boolean;
+  /** 自宅の位置（分からなければ null） */
+  point: Point | null;
 };
-type VehicleLite = { id: number; name: string; capacity: number; driverIds: number[] };
+type VehicleLite = BoardVehicle;
 
 type Props = {
   initial: DailyDetail;
@@ -50,6 +56,8 @@ type Props = {
   staff: StaffLite[];
   clients: ClientLite[];
   vehicles: VehicleLite[];
+  /** 店舗の位置（送迎の近い順・遠い順の基準。分からなければ null） */
+  origin: Point | null;
 };
 
 /** 時間割の一覧に常に表示する行数 */
@@ -63,7 +71,7 @@ let keySeq = 0;
 const newKey = () => `n${Date.now()}_${keySeq++}`;
 const renumber = (riders: DailyRun["riders"]) => riders.map((r, i) => ({ ...r, seq: i + 1 }));
 
-export default function DailyEditor({ initial, scheduled, planContext, slots, staff, clients, vehicles }: Props) {
+export default function DailyEditor({ initial, scheduled, planContext, slots, staff, clients, vehicles, origin }: Props) {
   const [d, setD] = useState<DailyDetail>(initial);
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
@@ -145,35 +153,10 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
   const addRun = (run: RunKind) =>
     update((p) => ({ ...p, runs: [...p.runs, { key: newKey(), run, vehicle_id: null, driver_id: null, escort_id: null, depart_time: "", riders: [] }] }));
   const removeRun = (key: string) => update((p) => ({ ...p, runs: p.runs.filter((r) => r.key !== key) }));
-  const addRider = (key: string, cid: number) =>
-    update((p) => ({
-      ...p,
-      runs: p.runs.map((r) => (r.key === key ? { ...r, riders: renumber([...r.riders, { client_id: cid, direction: RUN_INFO[r.run].dir, seq: 0 }]) } : r)),
-    }));
-  const removeRider = (key: string, cid: number) =>
-    update((p) => ({ ...p, runs: p.runs.map((r) => (r.key === key ? { ...r, riders: renumber(r.riders.filter((x) => x.client_id !== cid)) } : r)) }));
-  const moveRider = (fromKey: string, cid: number, toKey: string) =>
-    update((p) => ({
-      ...p,
-      runs: p.runs.map((r) => {
-        if (r.key === fromKey) return { ...r, riders: renumber(r.riders.filter((x) => x.client_id !== cid)) };
-        if (r.key === toKey) return { ...r, riders: renumber([...r.riders, { client_id: cid, direction: RUN_INFO[r.run].dir, seq: 0 }]) };
-        return r;
-      }),
-    }));
-  const shiftRider = (key: string, cid: number, delta: -1 | 1) =>
-    update((p) => ({
-      ...p,
-      runs: p.runs.map((r) => {
-        if (r.key !== key) return r;
-        const list = [...r.riders];
-        const i = list.findIndex((x) => x.client_id === cid);
-        const j = i + delta;
-        if (i < 0 || j < 0 || j >= list.length) return r;
-        [list[i], list[j]] = [list[j], list[i]];
-        return { ...r, riders: renumber(list) };
-      }),
-    }));
+  const boardClient = (cid: number): BoardClient | undefined => {
+    const c = clientById.get(cid);
+    return c && { name: c.name, route: c.route, wheelchair: c.wheelchair, point: c.point };
+  };
   const unassigned = (run: RunKind) =>
     presentIds(RUN_INFO[run].session)
       .filter((cid) => clientById.get(cid)?.uses_transport)
@@ -264,7 +247,7 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
     setMsg(`${what}をコピーしました。日報シートの該当日の行に貼り付けてください。`);
   };
 
-  const staffSelect = (value: number | null, onChange: (v: number | null) => void, candidates: StaffLite[], extraClass = "") => (
+  const staffSelect = (value: number | null, onChange: (v: number | null) => void, candidates: { id: number; name: string }[], extraClass = "") => (
     <select value={value ?? ""} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)} className={`${input} ${extraClass}`}>
       <option value="">未定</option>
       {candidates.map((s) => (
@@ -496,117 +479,34 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
             昼送車と昼迎車は、同じ車両なら運転者が自動でそろいます。車両・運転・添乗・時刻・乗車順は手で変更できます。
           </span>
         </h2>
-        <div className="space-y-5">
+        <div className="space-y-6">
           {RUNS.map((rk) => {
             const runs = d.runs.filter((r) => r.run === rk.key);
-            const left = unassigned(rk.key);
-            const usedDrivers = runs.map((r) => r.driver_id).filter((x): x is number => x != null);
             return (
               <div key={rk.key}>
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold">{rk.label}</h3>
-                  <span className="text-xs text-slate-500">{rk.note}</span>
-                  <button onClick={() => addRun(rk.key)} className={`${btnSecondary} ml-auto text-xs`}>
-                    ＋ 車両を追加
-                  </button>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {runs.map((r) => {
-                    const v = r.vehicle_id != null ? vehicleById.get(r.vehicle_id) : undefined;
-                    const cands = driverCands(rk.key);
-                    const allowed = v && v.driverIds.length ? cands.filter((s) => v.driverIds.includes(s.id)) : cands;
-                    const dup = r.driver_id != null && usedDrivers.filter((x) => x === r.driver_id).length > 1;
-                    const over = v && r.riders.length > v.capacity;
-                    return (
-                      <div key={r.key} className="rounded border">
-                        <div className="flex flex-wrap items-center gap-1 border-b bg-slate-50 p-2">
-                          <select
-                            value={r.vehicle_id ?? ""}
-                            onChange={(e) => setRun(r.key, { vehicle_id: e.target.value ? Number(e.target.value) : null })}
-                            className={`${input} font-semibold`}
-                          >
-                            <option value="">車両未定</option>
-                            {vehicles.map((x) => (
-                              <option key={x.id} value={x.id}>
-                                {x.name}（{x.capacity}名）
-                              </option>
-                            ))}
-                          </select>
-                          <input value={r.depart_time} onChange={(e) => setRun(r.key, { depart_time: e.target.value })} placeholder="時刻" className={`${input} w-16`} />
-                          <button onClick={() => removeRun(r.key)} className="ml-auto text-xs text-red-600" title="この車両を外す（乗車者は未割り当てに戻ります）">
-                            外す
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 border-b p-2 text-xs">
-                          <span>運転</span>
-                          {staffSelect(r.driver_id, (x) => setRun(r.key, { driver_id: x }), allowed, dup ? "border-red-500 text-red-700" : "")}
-                          <span>添乗</span>
-                          {staffSelect(r.escort_id, (x) => setRun(r.key, { escort_id: x }), escortCands(rk.key))}
-                          {dup && <span className="text-red-700">同じ便で重複</span>}
-                        </div>
-                        <div className={`px-2 pt-1 text-[11px] ${over ? "font-bold text-red-700" : "text-slate-500"}`}>
-                          {r.riders.length}名{v ? ` / ${v.capacity}` : ""}
-                          {over ? "（乗車可能人数を超えています）" : ""}
-                        </div>
-                        <ol className="p-1 text-sm">
-                          {r.riders.map((x, i) => (
-                            <li key={x.client_id} className="flex items-center gap-1 px-1 py-0.5">
-                              <span className="w-4 text-xs text-slate-400">{i + 1}</span>
-                              <span className="flex-1 truncate">
-                                {cname(x.client_id)}
-                                <span className="ml-1 text-[10px] text-slate-400">{clientById.get(x.client_id)?.route}</span>
-                              </span>
-                              <button onClick={() => shiftRider(r.key, x.client_id, -1)} className="px-1 text-slate-500" title="上へ">
-                                ↑
-                              </button>
-                              <button onClick={() => shiftRider(r.key, x.client_id, 1)} className="px-1 text-slate-500" title="下へ">
-                                ↓
-                              </button>
-                              <select
-                                value=""
-                                onChange={(e) => e.target.value && moveRider(r.key, x.client_id, e.target.value)}
-                                className="w-14 rounded border text-[11px]"
-                                title="別の車両へ移す"
-                              >
-                                <option value="">移動</option>
-                                {runs
-                                  .filter((o) => o.key !== r.key)
-                                  .map((o) => (
-                                    <option key={o.key} value={o.key}>
-                                      {vname(o.vehicle_id)}
-                                    </option>
-                                  ))}
-                              </select>
-                              <button onClick={() => removeRider(r.key, x.client_id)} className="px-1 text-red-500" title="外す">
-                                ×
-                              </button>
-                            </li>
-                          ))}
-                          {r.riders.length === 0 && <li className="p-1 text-xs text-slate-400">乗車なし</li>}
-                        </ol>
-                      </div>
-                    );
-                  })}
-                  {runs.length === 0 && <p className="text-xs text-slate-400">なし</p>}
-                </div>
-                {left.length > 0 && (
-                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-sm">
-                    <span className="font-semibold text-amber-900">車両が決まっていない方: </span>
-                    {left.map((cid) => (
-                      <span key={cid} className="mr-2 inline-flex items-center gap-1">
-                        {cname(cid)}
-                        <select value="" onChange={(e) => e.target.value && addRider(e.target.value, cid)} className="rounded border text-[11px]">
-                          <option value="">乗せる車両</option>
-                          {runs.map((o) => (
-                            <option key={o.key} value={o.key}>
-                              {vname(o.vehicle_id)}
-                            </option>
-                          ))}
-                        </select>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <DispatchBoard
+                  run={rk.key}
+                  label={rk.label}
+                  note={rk.note}
+                  runs={runs}
+                  pool={unassigned(rk.key)}
+                  client={boardClient}
+                  origin={origin}
+                  vehicles={vehicles}
+                  driverCands={driverCands(rk.key)}
+                  escortCands={escortCands(rk.key)}
+                  renderStaffSelect={staffSelect}
+                  onPlace={(cid, toKey, index, newKey) =>
+                    update((p) => ({ ...p, runs: placeRider(p.runs, rk.key, cid, toKey, index, newKey ? { key: newKey } : undefined) }))
+                  }
+                  onSetRun={setRun}
+                  onSort={(key, order) =>
+                    origin &&
+                    update((p) => ({ ...p, runs: p.runs.map((r) => (r.key === key ? sortRunByDistance(r, (cid) => clientById.get(cid)?.point ?? null, origin, order) : r)) }))
+                  }
+                  onAddGroup={() => addRun(rk.key)}
+                  onRemoveGroup={removeRun}
+                />
                 {rk.key === "noon_pick" && noon.length > 0 && (
                   <div className="mt-3">
                     <h3 className="mb-1 font-semibold">

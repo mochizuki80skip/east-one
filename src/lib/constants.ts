@@ -37,6 +37,9 @@ export const DEFAULT_PATTERNS: Record<Contract, string[]> = {
 /** 雇用区分ごとの週の勤務日数の初期値 */
 export const DEFAULT_DAYS: Record<Contract, number> = { 正社員: 5, 時短社員: 5, パート: 3 };
 
+/** 性別 */
+export const GENDERS = ["男", "女"] as const;
+
 /** できること（複数選択） */
 export const SKILLS = ["運転", "添乗", "整体", "個別機能訓練", "体操", "メディカルケアFIT", "血圧測定", "事務"] as const;
 export type Skill = (typeof SKILLS)[number];

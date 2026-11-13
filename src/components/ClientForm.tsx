@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { CareManager, Client, ClientSlot, Route } from "@/lib/types";
 import { CARE_LEVELS, CLIENT_STATUSES, OPEN_WEEKDAY_ORDER, SESSIONS, WEEKDAYS } from "@/lib/constants";
 import { deleteClient } from "@/lib/data";
+import { hasPoint } from "@/lib/geo";
 import { submitClient } from "@/lib/forms";
 import { links } from "@/lib/links";
 import { Card, btnDanger, btnPrimary, input, label, td, th } from "./ui";
@@ -130,6 +131,9 @@ export default function ClientForm({ storeId, client, slots, careManagers, route
             <input type="checkbox" name="uses_transport" defaultChecked={client ? !!client.uses_transport : true} /> 送迎あり
           </label>
           <label>
+            <input type="checkbox" name="wheelchair" defaultChecked={!!client?.wheelchair} /> ♿ 車イス（車イスのまま乗車）
+          </label>
+          <label>
             <input type="checkbox" name="needs_training" defaultChecked={client ? !!client.needs_training : true} /> 機能訓練・整体
           </label>
         </div>
@@ -149,8 +153,19 @@ export default function ClientForm({ storeId, client, slots, careManagers, route
           <input name="route_order" type="number" defaultValue={client?.route_order ?? 0} className={`${input} w-24`} />
         </div>
         <div>
-          <label className={label}>住所・目印</label>
-          <input name="address" defaultValue={client?.address} className={`${input} w-full`} />
+          <label className={label}>住所（送迎の「近い順・遠い順」に使います）</label>
+          <input name="address" defaultValue={client?.address} placeholder="例: 静岡県三島市〇〇町1-2-3" className={`${input} w-full`} />
+          {client?.address && (
+            <p className="mt-1 text-xs">
+              {hasPoint(client) && client.geo_address === client.address ? (
+                <span className="text-emerald-700">📍 位置が分かっています</span>
+              ) : client.geo_address === client.address ? (
+                <span className="text-amber-700">住所から位置が見つかりませんでした。番地まで正しいか確認してください</span>
+              ) : (
+                <span className="text-slate-500">保存すると住所から位置を調べます</span>
+              )}
+            </p>
+          )}
         </div>
         <div className="md:col-span-4">
           <label className={label}>留意事項</label>

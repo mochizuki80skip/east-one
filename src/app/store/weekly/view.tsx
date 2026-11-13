@@ -7,6 +7,7 @@ import { displayAge } from "@/lib/date";
 import { links } from "@/lib/links";
 import { Card, Notice, PageTitle, btnSecondary } from "@/components/ui";
 import ClientImport from "@/components/ClientImport";
+import AddressBookImport from "@/components/AddressBookImport";
 import { Loading } from "@/components/Loading";
 import { useLoad } from "@/components/useLoad";
 import { useQuery } from "@/components/useQuery";
@@ -84,6 +85,9 @@ export default function WeeklyView() {
       </p>
       <Card title="曜日別出席リスト（スプレッドシート）から取り込む">
         <ClientImport storeId={sid} onDone={reload} />
+      </Card>
+      <Card title="住所録を取り込む（送迎の近い順・遠い順に使います）">
+        <AddressBookImport storeId={sid} clients={data.clients} onDone={reload} />
       </Card>
     </div>
   );

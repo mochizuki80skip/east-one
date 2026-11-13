@@ -79,5 +79,7 @@ export const api = {
     (await call<{ docs: Doc<T>[] }>("list", { query: { c, ...(f as Record<string, string>) } })).docs,
   get: async <T>(c: string, id: string | number) => (await call<{ doc: Doc<T> | null }>("get", { query: { c, id: String(id) } })).doc,
   batch: async (ops: BatchOp[]) => (ops.length ? (await call<{ results: { c: string; id: string }[] }>("batch", { body: { ops } })).results : []),
+  /** 住所 → 緯度・経度（見つからなければ null） */
+  geocode: async (q: string) => (await call<{ result: { lat: number; lng: number; title: string } | null }>("geocode", { body: { q } })).result,
   generate: (prompt: string) => call<{ engine: "claude" | "none"; text?: string; warning?: string }>("generate", { body: { prompt } }),
 };

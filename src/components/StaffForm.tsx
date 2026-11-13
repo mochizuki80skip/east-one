@@ -6,6 +6,7 @@ import type { Staff, Store } from "@/lib/types";
 import {
   CONTRACTS,
   DEFAULT_DAYS,
+  GENDERS,
   DEFAULT_PATTERNS,
   EMPLOYMENT_TYPES,
   makeTimeRange,
@@ -63,6 +64,17 @@ export default function StaffForm({ staff, stores, defaultStoreId }: { staff?: S
         <div>
           <label className={label}>名前</label>
           <input name="name" defaultValue={staff?.name} required className={`${input} w-full`} />
+          <div className="mt-2 flex items-center gap-4 text-sm">
+            <span className="text-xs font-semibold text-slate-600">性別</span>
+            {GENDERS.map((g) => (
+              <label key={g} className="inline-flex items-center gap-1">
+                <input type="radio" name="gender" value={g} defaultChecked={(staff?.gender ?? "") === g} /> {g}性
+              </label>
+            ))}
+            <label className="inline-flex items-center gap-1 text-slate-500">
+              <input type="radio" name="gender" value="" defaultChecked={!staff?.gender} /> 未設定
+            </label>
+          </div>
         </div>
         <div>
           <label className={label}>ステータス（雇用区分）</label>

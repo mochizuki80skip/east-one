@@ -1,5 +1,5 @@
 /** 入力フォームの内容を読み取り、保存する（ブラウザ側） */
-import { CONTRACTS, isTimeRange, joinList, SKILLS, splitList, type Session } from "./constants";
+import { CONTRACTS, GENDERS, isTimeRange, joinList, SKILLS, splitList, type Session } from "./constants";
 import {
   importClients,
   importStaff,
@@ -56,6 +56,7 @@ export async function submitStore(fd: FormData): Promise<number | null> {
     pm_slots: slots("pm_slots", "14:05,14:20,14:45,14:55,15:10,15:20"),
     slot_capacity: num(fd, "slot_capacity", 5),
     sort_order: num(fd, "sort_order"),
+    ...(fd.has("address") ? { address: str(fd, "address") } : {}),
   });
 }
 
@@ -68,6 +69,7 @@ export async function submitVehicle(fd: FormData) {
     store_id: storeId,
     name,
     capacity: num(fd, "capacity", 4),
+    wheelchair_seats: flag(fd, "wheelchair") ? Math.max(1, num(fd, "wheelchair_seats", 1)) : 0,
     sort_order: num(fd, "sort_order"),
     active: flag(fd, "active"),
     driverIds: ids(fd, "driver_ids"),
@@ -103,6 +105,7 @@ export async function submitStaff(fd: FormData): Promise<number | undefined> {
     id: optId(fd, "id") ?? undefined,
     name,
     status: str(fd, "status") || "在籍",
+    gender: (GENDERS as readonly string[]).includes(str(fd, "gender")) ? str(fd, "gender") : "",
     contract: (CONTRACTS as readonly string[]).includes(str(fd, "contract")) ? str(fd, "contract") : "",
     patterns: joinList([...new Set(splitList(str(fd, "patterns")).filter(isTimeRange))]),
     employment: str(fd, "employment") || "A",
@@ -158,6 +161,7 @@ export async function submitClient(fd: FormData) {
     route_id: optId(fd, "route_id"),
     route_order: num(fd, "route_order"),
     uses_transport: flag(fd, "uses_transport"),
+    wheelchair: flag(fd, "wheelchair"),
     needs_training: flag(fd, "needs_training"),
     address: str(fd, "address"),
     note: str(fd, "note"),

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { deleteRoute, deleteStore, deleteVehicle, getStore, listRoutes, listStaff, listVehicles } from "@/lib/data";
 import { submitRoute, submitStore, submitVehicle } from "@/lib/forms";
 import { DRIVE_SKILL, splitList, WEEKDAYS } from "@/lib/constants";
+import { hasPoint } from "@/lib/geo";
 import { Card, Notice, PageTitle, btnDanger, btnPrimary, input, label, td, th } from "@/components/ui";
 import { Loading } from "@/components/Loading";
 import { useLoad } from "@/components/useLoad";
@@ -51,6 +52,19 @@ export default function SettingsView() {
           <div>
             <label className={label}>並び順</label>
             <input name="sort_order" type="number" defaultValue={store.sort_order} className={`${input} w-20`} />
+          </div>
+          <div className="md:col-span-4">
+            <label className={label}>店舗の住所（送迎の「近い順・遠い順」の基準になります）</label>
+            <input name="address" defaultValue={store.address ?? ""} placeholder="例: 静岡県三島市〇〇町1-2-3" className={`${input} w-full md:w-2/3`} />
+            {store.address && (
+              <span className="ml-2 text-xs">
+                {hasPoint(store) ? (
+                  <span className="text-emerald-700">📍 位置が分かっています</span>
+                ) : (
+                  <span className="text-amber-700">住所から位置が見つかりませんでした。番地まで正しいか確認してください</span>
+                )}
+              </span>
+            )}
           </div>
           <div>
             <label className={label}>お問い合わせ電話番号</label>
@@ -109,7 +123,7 @@ export default function SettingsView() {
 
       <Card title="車両・運転可能スタッフ">
         <p className="mb-3 text-xs text-slate-600">
-          乗車可能人数は送迎で乗せられる利用者の人数です。運転可能スタッフを1人も選ばない車両は、「運転」ができる出勤者なら誰でも担当できます。
+          乗車人数は送迎で乗せられる利用者の人数（車イスの方を含む）です。車イスのまま乗れる車両は「車イス対応」にチェックし、何台まで乗れるかを入れてください。運転可能スタッフを1人も選ばない車両は、「運転」ができる出勤者なら誰でも担当できます。
           {drivers.length === 0 && (
             <span className="ml-1 text-amber-700">
               この店舗に「運転」ができるスタッフがいません（<Link href="/staff/" className="underline">スタッフ</Link>で設定）。
@@ -121,7 +135,8 @@ export default function SettingsView() {
             <thead>
               <tr>
                 <th className={th}>車両名</th>
-                <th className={th}>乗車可能人数</th>
+                <th className={th}>乗車人数</th>
+                <th className={th}>車イス対応</th>
                 <th className={th}>運転可能スタッフ</th>
                 <th className={th}>並び順</th>
                 <th className={th}>使用中</th>
@@ -143,6 +158,22 @@ export default function SettingsView() {
                     </td>
                     <td className={td}>
                       <input name="capacity" type="number" min={0} form={fid} defaultValue={v?.capacity ?? 4} className={`${input} w-16`} />
+                      <span className="ml-1 text-xs text-slate-500">名</span>
+                    </td>
+                    <td className={`${td} whitespace-nowrap`}>
+                      <label className="mr-2 text-sm">
+                        <input type="checkbox" name="wheelchair" form={fid} defaultChecked={!!v?.wheelchair_seats} /> ♿ 対応
+                      </label>
+                      <input
+                        name="wheelchair_seats"
+                        type="number"
+                        min={1}
+                        form={fid}
+                        defaultValue={v?.wheelchair_seats || 1}
+                        className={`${input} w-14`}
+                        title="車イスのまま何台まで乗れるか"
+                      />
+                      <span className="ml-1 text-xs text-slate-500">台まで</span>
                     </td>
                     <td className={td}>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">

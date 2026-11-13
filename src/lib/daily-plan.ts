@@ -34,7 +34,7 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
   // ---- 送迎 ----
   const toRider = (cid: number): TRider | null => {
     const c = clients.get(cid)!;
-    return c.uses_transport ? { clientId: cid, routeId: c.route_id, routeOrder: c.route_order } : null;
+    return c.uses_transport ? { clientId: cid, routeId: c.route_id, routeOrder: c.route_order, wheelchair: !!c.wheelchair } : null;
   };
   const driversFor = (pred: (w: { am: boolean; pm: boolean }) => boolean) =>
     staff.filter((s) => skills(s.id).includes(DRIVE_SKILL) && pred(works(s.id))).map((s) => ({ id: s.id, sortOrder: s.sort_order }));
@@ -45,6 +45,7 @@ export function autoPlanDaily(detail: DailyDetail, ctx: PlanContext): { detail: 
     vehicles: vehicles.map((v) => ({
       id: v.id,
       capacity: v.capacity,
+      wheelchairSeats: v.wheelchair_seats ?? 0,
       sortOrder: v.sort_order,
       allowedDriverIds: splitList(v.driver_ids).map(Number),
     })),

@@ -12,6 +12,8 @@ import { api, type BatchOp } from "./api";
 import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, normalizeDuties, normalizeSkills, shiftWorks, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
 import { cmKey, type ImportedCareManager } from "./caremanager-import";
+import type { AddressEntry } from "./address-book";
+import { hasPoint } from "./geo";
 import { normalizeName } from "./import";
 import { driverGroupOf, type TransportHistory } from "./transport";
 import type { TrainingHistory } from "./timetable";
@@ -46,8 +48,28 @@ export async function listStores(): Promise<Store[]> {
 export async function getStore(id: number): Promise<Store | undefined> {
   return (await api.get<Store>("stores", id))?.data;
 }
+/** 保存済みの項目（位置など、画面に無い項目）を残して上書きする */
+async function merged<T extends object>(c: string, id: number | undefined, data: T): Promise<T> {
+  if (!id) return data;
+  const cur = (await api.get<T>(c, id))?.data;
+  return cur ? { ...cur, ...data } : data;
+}
 export async function saveStore(s: Omit<Store, "id"> & { id?: number }): Promise<number> {
-  return saveOne("stores", s.id, s);
+  const data = await merged("stores", s.id, s);
+  // 住所が変わったら位置を調べ直す
+  if ((data.address ?? "") !== (data.geo_address ?? "")) Object.assign(data, { lat: null, lng: null });
+  const id = await saveOne("stores", s.id, data);
+  if (data.address && !hasPoint(data)) await locateStore(id).catch(() => undefined);
+  return id;
+}
+/** 店舗の住所から位置を調べて保存する（見つからなければ null のまま） */
+export async function locateStore(id: number): Promise<Store | undefined> {
+  const s = (await api.get<Store>("stores", id))?.data;
+  if (!s?.address) return s;
+  const r = await api.geocode(s.address);
+  const next = { ...s, lat: r?.lat ?? null, lng: r?.lng ?? null, geo_address: s.address };
+  await api.batch([put("stores", id, next)]);
+  return next;
 }
 /** 店舗と、その店舗の車両・ルート・利用者・シフト・スケジュール・月次報告を削除する */
 export async function deleteStore(id: number) {
@@ -248,7 +270,73 @@ export async function getClient(id: number): Promise<ClientWithSlots | undefined
   return d ? { ...d, slots: d.slots ?? [] } : undefined;
 }
 export async function saveClient(c: Omit<ClientWithSlots, "id"> & { id?: number }): Promise<number> {
-  return saveOne("clients", c.id, c);
+  const data = await merged("clients", c.id, c);
+  if ((data.address ?? "") !== (data.geo_address ?? "")) Object.assign(data, { lat: null, lng: null });
+  const id = await saveOne("clients", c.id, data);
+  if (data.address && !hasPoint(data)) await locateClients([{ ...data, id } as ClientWithSlots]).catch(() => undefined);
+  return id;
+}
+
+/**
+ * 住所録の取り込み。名前が同じ利用者（空白・様を除いて比べる）の住所を更新する。
+ * 緯度・経度が住所録にあればそのまま使い、無ければあとで住所から調べる。
+ */
+export async function importAddresses(storeId: number, list: AddressEntry[]): Promise<{ matched: number; unmatched: string[] }> {
+  const clients = await listClientsWithSlots(storeId, { includeEnded: true });
+  const byName = new Map(clients.map((c) => [normalizeName(c.name), c]));
+  const ops: BatchOp[] = [];
+  const unmatched: string[] = [];
+  for (const e of list) {
+    const c = byName.get(e.name);
+    if (!c) {
+      unmatched.push(e.name);
+      continue;
+    }
+    const given = e.lat != null && e.lng != null;
+    const same = c.address === e.address && hasPoint(c);
+    ops.push(
+      put("clients", c.id, {
+        ...c,
+        address: e.address,
+        lat: given ? e.lat : same ? c.lat : null,
+        lng: given ? e.lng : same ? c.lng : null,
+        geo_address: given || same ? e.address : "",
+      }),
+    );
+  }
+  await api.batch(ops);
+  return { matched: ops.length, unmatched };
+}
+
+/** 位置がまだ分からない利用者（住所あり）の一覧 */
+export function clientsToLocate(clients: ClientWithSlots[]): ClientWithSlots[] {
+  return clients.filter((c) => c.address && c.geo_address !== c.address);
+}
+
+/**
+ * 利用者の住所から位置を調べて保存する（1 件ずつ。10 件ごとに保存）。
+ * 見つからなかった方は geo_address だけ入れて、同じ住所で何度も調べないようにする。
+ */
+export async function locateClients(
+  targets: ClientWithSlots[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ located: number; notFound: string[] }> {
+  let pending: BatchOp[] = [];
+  let located = 0;
+  const notFound: string[] = [];
+  for (let i = 0; i < targets.length; i++) {
+    const c = targets[i];
+    const r = await api.geocode(c.address);
+    if (r) located++;
+    else notFound.push(c.name);
+    pending.push(put("clients", c.id, { ...c, lat: r?.lat ?? null, lng: r?.lng ?? null, geo_address: c.address }));
+    if (pending.length >= 10 || i === targets.length - 1) {
+      await api.batch(pending);
+      pending = [];
+    }
+    onProgress?.(i + 1, targets.length);
+  }
+  return { located, notFound };
 }
 export async function deleteClient(id: number) {
   const monthly = await api.list("monthly", { prefix: `${id}:` });
@@ -432,7 +520,8 @@ export async function saveDaily(detail: DailyDetail) {
   const doc: DailyDoc & { updated_at: string } = {
     memo: detail.memo,
     attendance: detail.attendance.map((a) => ({ ...a, reason: a.status === "absent" ? a.reason : "" })),
-    runs: detail.runs.map((r) => ({ ...r, key: "" })),
+    // 空のグループ（車両・運転者も未定）は保存しない
+    runs: detail.runs.filter((r) => r.riders.length > 0 || r.vehicle_id != null || r.driver_id != null).map((r) => ({ ...r, key: "" })),
     training: detail.training,
     duties: detail.duties,
     tasks: detail.tasks.filter((t) => t.task.trim()),

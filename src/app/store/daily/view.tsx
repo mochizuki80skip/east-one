@@ -4,6 +4,7 @@ import Link from "next/link";
 import { buildHistories, getDaily, getStore, listClientsWithSlots, listRoutes, listStaff, listVehicles, scheduledAttendance } from "@/lib/data";
 import { addDays, formatDateJa } from "@/lib/date";
 import { splitList } from "@/lib/constants";
+import { hasPoint } from "@/lib/geo";
 import { links } from "@/lib/links";
 import { Notice, PageTitle, btnSecondary } from "@/components/ui";
 import DailyEditor from "@/components/DailyEditor";
@@ -63,10 +64,13 @@ export default function DailyView() {
           uses_transport: !!c.uses_transport,
           needs_training: !!c.needs_training,
           route: c.route_id ? (routeName.get(c.route_id) ?? "") : "",
+          wheelchair: !!c.wheelchair,
+          point: hasPoint(c) ? { lat: c.lat, lng: c.lng } : null,
         }))}
+        origin={hasPoint(store) ? { lat: store.lat, lng: store.lng } : null}
         vehicles={vehicles
           .filter((v) => v.active)
-          .map((v) => ({ id: v.id, name: v.name, capacity: v.capacity, driverIds: splitList(v.driver_ids).map(Number) }))}
+          .map((v) => ({ id: v.id, name: v.name, capacity: v.capacity, wheelchairSeats: v.wheelchair_seats ?? 0, driverIds: splitList(v.driver_ids).map(Number) }))}
       />
     </div>
   );

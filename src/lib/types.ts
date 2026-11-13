@@ -16,6 +16,12 @@ export type Store = {
   pm_slots: string;
   slot_capacity: number;
   sort_order: number;
+  /** 店舗の住所と位置（送迎の「近い順・遠い順」の基準）。古いデータには無い */
+  address?: string;
+  lat?: number | null;
+  lng?: number | null;
+  /** 位置を調べたときの住所（住所が変わったら調べ直す） */
+  geo_address?: string;
 };
 
 export type Staff = {
@@ -23,6 +29,8 @@ export type Staff = {
   name: string;
   /** 在籍状況（在籍・休職・退職） */
   status: string;
+  /** 性別（男・女）。古いデータには無い */
+  gender?: string;
   /** 雇用区分（正社員・時短社員・パート）。古いデータには無い */
   contract?: string;
   /** 勤務時間のパターン（「8:30-17:30,9:00-13:30」の形）。先頭がいつもの時間 */
@@ -45,6 +53,8 @@ export type Vehicle = {
   store_id: number;
   name: string;
   capacity: number;
+  /** 車イスのまま乗れる台数（0 なら車イス非対応） */
+  wheelchair_seats?: number;
   sort_order: number;
   active: number;
   /** 運転可能スタッフ（カンマ区切りID、空なら運転できる全員） */
@@ -84,6 +94,12 @@ export type Client = {
   needs_training: number;
   address: string;
   note: string;
+  /** 車イス（車イスのまま乗車） */
+  wheelchair?: number;
+  /** 自宅の位置（住所録の取り込み時に住所から調べる） */
+  lat?: number | null;
+  lng?: number | null;
+  geo_address?: string;
 };
 
 export type ClientSlot = { client_id: number; weekday: number; session: Session };

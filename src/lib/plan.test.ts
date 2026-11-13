@@ -232,3 +232,87 @@ test("昼送迎: 車両ごとに送りと迎えを1つにまとめ、「送り�
   assert.deepEqual(noonText(["山田", "佐藤"], ["鈴木", "田中"]), { drop: "送り：山田→佐藤", pick: "迎え：→鈴木→田中" });
   assert.deepEqual(noonText([], ["鈴木"]), { drop: "送り：なし", pick: "迎え：→鈴木" });
 });
+
+test("送迎: 車イスの方は車イス対応の車両（台数まで）にだけ乗せる", () => {
+  const vs: TVehicle[] = [
+    { id: 1, capacity: 4, sortOrder: 1, allowedDriverIds: [] },
+    { id: 2, capacity: 4, sortOrder: 2, allowedDriverIds: [], wheelchairSeats: 1 },
+  ];
+  const res = planTransport({
+    amRiders: [
+      { clientId: 1, routeId: null, routeOrder: 0, wheelchair: true },
+      { clientId: 2, routeId: null, routeOrder: 0 },
+      { clientId: 3, routeId: null, routeOrder: 0, wheelchair: true },
+    ],
+    pmRiders: [],
+    vehicles: vs,
+    routes: [],
+    drivers: { morning: drivers, noon_drop: drivers, noon_pick: drivers, evening: drivers },
+    history: noHistory,
+  });
+  const morning = res.runs.filter((x) => x.run === "morning");
+  const inV2 = morning.find((x) => x.vehicleId === 2)?.riders.map((x) => x.clientId) ?? [];
+  const inV1 = morning.find((x) => x.vehicleId === 1)?.riders.map((x) => x.clientId) ?? [];
+  assert.equal(inV2.filter((c) => c === 1 || c === 3).length, 1); // 車イス 1 台まで
+  assert.ok(!inV1.includes(1) && !inV1.includes(3)); // 非対応の車両には乗らない
+  assert.equal(res.unassigned.filter((u) => u.run === "morning").length, 1); // 2 人目の車イスは未割り当て
+});
+
+import { distanceKm, sortByDistance } from "./geo";
+import { parseAddressBook } from "./address-book";
+
+test("距離: 店舗から近い順・遠い順に並べ、位置が分からない方は最後", () => {
+  const shop = { lat: 35.118, lng: 138.918 }; // 三島駅あたり
+  const near = { id: 1, p: { lat: 35.12, lng: 138.92 } };
+  const far = { id: 2, p: { lat: 35.2, lng: 138.9 } };
+  const none = { id: 3, p: null };
+  assert.ok(distanceKm(shop, far.p) > 8 && distanceKm(shop, far.p) < 11);
+  assert.deepEqual(sortByDistance([far, none, near], (x) => x.p, shop, "near").map((x) => x.id), [1, 2, 3]);
+  assert.deepEqual(sortByDistance([near, none, far], (x) => x.p, shop, "far").map((x) => x.id), [2, 1, 3]);
+});
+
+test("住所録: 見出しの列名から名前・住所・緯度経度を読み、名前は空白と様を除く", () => {
+  const csv = "郵便番号,利用者名,住所,電話,緯度,経度\n411-0000,朝日 花子様,静岡県三島市一番町1-1,055,35.1,138.9\n,夕月　太郎,静岡県三島市二番町2-2,,,\n,,住所だけ,,,";
+  const r = parseAddressBook(csv);
+  assert.equal(r.header, true);
+  assert.deepEqual(r.list, [
+    { name: "朝日花子", address: "静岡県三島市一番町1-1", lat: 35.1, lng: 138.9 },
+    { name: "夕月太郎", address: "静岡県三島市二番町2-2", lat: null, lng: null },
+  ]);
+  assert.deepEqual(parseAddressBook("朝日花子\t静岡県三島市一番町1-1").list[0].address, "静岡県三島市一番町1-1");
+});
+
+import { placeRider, sortRunByDistance } from "./dispatch";
+
+test("配車ボード: ドラッグで別のグループ・新しいグループ・未割り当てへ移し、順番を振り直す", () => {
+  const g = (key: string, ids: number[], run: "morning" | "evening" = "morning") => ({
+    key,
+    run,
+    vehicle_id: null,
+    driver_id: null,
+    escort_id: null,
+    depart_time: "",
+    riders: ids.map((client_id, i) => ({ client_id, direction: (run === "morning" ? "pickup" : "dropoff") as "pickup" | "dropoff", seq: i + 1 })),
+  });
+  const runs = [g("a", [1, 2, 3]), g("b", [4]), g("e", [1], "evening")];
+  // 2 を b の先頭へ
+  let r = placeRider(runs, "morning", 2, "b", 0);
+  assert.deepEqual(r.find((x) => x.key === "a")!.riders.map((x) => [x.client_id, x.seq]), [[1, 1], [3, 2]]);
+  assert.deepEqual(r.find((x) => x.key === "b")!.riders.map((x) => [x.client_id, x.seq]), [[2, 1], [4, 2]]);
+  assert.deepEqual(r.find((x) => x.key === "e")!.riders.map((x) => x.client_id), [1]); // 別の便は変わらない
+  // 未割り当ての 9 を新しいグループへ
+  r = placeRider(r, "morning", 9, "n1", undefined, { key: "n1" });
+  assert.deepEqual(r.find((x) => x.key === "n1")!.riders, [{ client_id: 9, direction: "pickup", seq: 1 }]);
+  assert.equal(r.find((x) => x.key === "n1")!.vehicle_id, null); // 車両はあとで
+  // 未割り当てに戻す
+  r = placeRider(r, "morning", 4, null);
+  assert.ok(!r.some((x) => x.run === "morning" && x.riders.some((y) => y.client_id === 4)));
+  // 同じグループ内で並べ替え（1 を最後へ）
+  r = placeRider(r, "morning", 1, "a", 1);
+  assert.deepEqual(r.find((x) => x.key === "a")!.riders.map((x) => x.client_id), [3, 1]);
+  // 近い順・遠い順
+  const pts: Record<number, { lat: number; lng: number } | null> = { 3: { lat: 35.2, lng: 138.9 }, 1: { lat: 35.12, lng: 138.92 } };
+  const shop = { lat: 35.118, lng: 138.918 };
+  assert.deepEqual(sortRunByDistance(r.find((x) => x.key === "a")!, (c) => pts[c] ?? null, shop, "near").riders.map((x) => x.client_id), [1, 3]);
+  assert.deepEqual(sortRunByDistance(r.find((x) => x.key === "a")!, (c) => pts[c] ?? null, shop, "far").riders.map((x) => x.client_id), [3, 1]);
+});

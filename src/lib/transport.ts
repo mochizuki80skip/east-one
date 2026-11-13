@@ -5,6 +5,7 @@
  *  - 昼送車と昼迎車は、同じ車両には同じ運転者が乗る（車両ごとに運転者を共有）
  *  - 利用者はルートごとにまとめ、ルートの既定車両に乗せる。乗車可能人数を超えた分や未設定の方は空きのある車両へ
  *  - 運転者は当日その時間帯に出勤している運転可能スタッフから選ぶ（車両ごとの運転可能スタッフの制限を守る）
+ *  - 車イスの方は、車イス対応の車両（車イスの台数まで）にだけ乗せる
  *  - 同じ時間帯に 1 人が 2 台を運転しない / 前回その時間帯にその車両を運転した人を避ける / 担当数を平準化する
  */
 import { runLabel, type RunKind } from "./constants";
@@ -12,8 +13,8 @@ import { inc, pickBest, SAME_AS_LAST_PENALTY, TODAY_LOAD_WEIGHT, timeToMinutes }
 
 export type Direction = "pickup" | "dropoff";
 
-export type TRider = { clientId: number; routeId: number | null; routeOrder: number };
-export type TVehicle = { id: number; capacity: number; sortOrder: number; allowedDriverIds: number[] };
+export type TRider = { clientId: number; routeId: number | null; routeOrder: number; wheelchair?: boolean };
+export type TVehicle = { id: number; capacity: number; sortOrder: number; allowedDriverIds: number[]; wheelchairSeats?: number };
 export type TRoute = { id: number; vehicleId: number | null; sortOrder: number; times: Record<RunKind, string> };
 export type TDriver = { id: number; sortOrder: number };
 
@@ -70,8 +71,12 @@ function allocate(riders: TRider[], vehicles: TVehicle[], routes: TRoute[]): All
   const byVehicle = new Map<number, number[]>();
   const usedRoutes = new Map<number, Set<number>>();
   const load = (vid: number) => byVehicle.get(vid)?.length ?? 0;
+  const wcLoad = new Map<number, number>();
+  /** 乗車人数と車イスの台数の両方に空きがあるか */
+  const fits = (v: TVehicle, r: TRider) => load(v.id) < v.capacity && (!r.wheelchair || (wcLoad.get(v.id) ?? 0) < (v.wheelchairSeats ?? 0));
   const put = (vid: number, r: TRider) => {
     byVehicle.set(vid, [...(byVehicle.get(vid) ?? []), r.clientId]);
+    if (r.wheelchair) inc(wcLoad, vid);
     if (r.routeId != null) usedRoutes.set(vid, (usedRoutes.get(vid) ?? new Set()).add(r.routeId));
   };
 
@@ -85,15 +90,17 @@ function allocate(riders: TRider[], vehicles: TVehicle[], routes: TRoute[]): All
   for (const r of sorted) {
     const route = r.routeId != null ? routeById.get(r.routeId) : undefined;
     const v = route?.vehicleId != null ? vehicleById.get(route.vehicleId) : undefined;
-    if (v && load(v.id) < v.capacity) put(v.id, r);
+    if (v && fits(v, r)) put(v.id, r);
     else leftover.push(r);
   }
+  // 車イスの方を先に（車イス対応の車両の席を先に使う）
+  leftover.sort((a, b) => Number(!!b.wheelchair) - Number(!!a.wheelchair));
 
   const unassigned: number[] = [];
   const vs = [...vehicles].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
   for (const r of leftover) {
-    const inUse = vs.filter((v) => load(v.id) > 0 && load(v.id) < v.capacity);
-    const unused = vs.filter((v) => load(v.id) === 0 && v.capacity > 0);
+    const inUse = vs.filter((v) => load(v.id) > 0 && fits(v, r));
+    const unused = vs.filter((v) => load(v.id) === 0 && fits(v, r));
     const v = inUse.sort((a, b) => b.capacity - load(b.id) - (a.capacity - load(a.id)))[0] ?? unused[0];
     if (v) put(v.id, r);
     else unassigned.push(r.clientId);
@@ -120,12 +127,18 @@ export function planTransport(input: TransportInput): TransportResult {
   const drop = legPlans.find((l) => l.run === "noon_drop")!.alloc;
   const pick = legPlans.find((l) => l.run === "noon_pick")!.alloc;
   const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
+  const wheelchairIds = new Set([...input.amRiders, ...input.pmRiders].filter((r) => r.wheelchair).map((r) => r.clientId));
   const dropOnly = [...drop.byVehicle.keys()].filter((id) => !pick.byVehicle.has(id));
   const pickOnly = [...pick.byVehicle.keys()].filter((id) => !drop.byVehicle.has(id));
   for (const pid of pickOnly.sort((a, b) => (pick.byVehicle.get(b)?.length ?? 0) - (pick.byVehicle.get(a)?.length ?? 0))) {
     const riders = pick.byVehicle.get(pid)!;
     const target = dropOnly
-      .filter((did) => !pick.byVehicle.has(did) && (vehicleById.get(did)?.capacity ?? 0) >= riders.length)
+      .filter(
+        (did) =>
+          !pick.byVehicle.has(did) &&
+          (vehicleById.get(did)?.capacity ?? 0) >= riders.length &&
+          (vehicleById.get(did)?.wheelchairSeats ?? 0) >= riders.filter((c) => wheelchairIds.has(c)).length,
+      )
       .sort((a, b) => (vehicleById.get(a)!.sortOrder - vehicleById.get(b)!.sortOrder) || a - b)[0];
     if (target == null) continue;
     pick.byVehicle.set(target, riders);
@@ -191,6 +204,6 @@ export function planTransport(input: TransportInput): TransportResult {
       });
     }
   }
-  if (unassigned.length) warnings.push(`車両の乗車可能人数が足りず、${unassigned.length}件の送迎が未割り当てです`);
+  if (unassigned.length) warnings.push(`車両の乗車人数（車イスの台数）が足りず、${unassigned.length}件の送迎が未割り当てです`);
   return { runs, unassigned, warnings: [...new Set(warnings)] };
 }

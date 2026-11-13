@@ -31,7 +31,7 @@ export default function DailyPrintView() {
   const clients = new Map(clientList.map((c) => [c.id, c]));
   const vehicles = new Map(vehicleList.map((v) => [v.id, v]));
   const sn = (id: number | null | undefined) => (id != null ? (staff.get(id)?.name ?? "") : "");
-  const cn = (id: number) => clients.get(id)?.name ?? "";
+  const cn = (id: number) => (clients.get(id)?.name ?? "") + (clients.get(id)?.wheelchair ? "♿" : "");
   const slots = { am: splitList(store.am_slots), pm: splitList(store.pm_slots) };
   const codeOf = new Map(d.shifts.map((s) => [s.staff_id, s.code]));
   const lite = staffList.map((s) => ({ id: s.id, name: s.name, role: s.role, skills: splitList(s.skills) }));

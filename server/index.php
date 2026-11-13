@@ -163,6 +163,19 @@ switch ($action) {
         json_out(generate_report($prompt));
     }
 
+    case 'geocode': {
+        // 住所 → 緯度・経度（送迎の「近い順・遠い順」に使う）
+        if ($method !== 'POST') fail(405, 'POST で送信してください。');
+        require_login();
+        require_ajax();
+        $q = trim((string)(body()['q'] ?? ''));
+        if ($q === '' || mb_strlen($q) > 200) fail(400, '住所が正しくありません。');
+        if (!is_file(__DIR__ . '/geocode.php')) fail(500, 'api フォルダに geocode.php がありません。アップロードしてください。');
+        require __DIR__ . '/geocode.php';
+        session_write_close();
+        json_out(['result' => geocode_address($q)]);
+    }
+
     default:
         fail(404, '不明な操作です。');
 }

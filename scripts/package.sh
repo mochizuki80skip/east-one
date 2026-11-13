@@ -15,7 +15,7 @@ mkdir -p dist/public_html
 cp -R out/. dist/public_html/
 cp deploy/xserver/htaccess-root dist/public_html/.htaccess
 mkdir -p dist/public_html/api/data
-cp server/index.php server/lib.php server/report.php server/config.sample.php server/composer.json dist/public_html/api/
+cp server/index.php server/lib.php server/report.php server/geocode.php server/config.sample.php server/composer.json dist/public_html/api/
 [ -f server/composer.lock ] && cp server/composer.lock dist/public_html/api/
 cp server/.htaccess dist/public_html/api/.htaccess
 cp server/data/.htaccess dist/public_html/api/data/.htaccess
