@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ABSENCE_REASONS,
   DRIVE_SKILL,
@@ -27,7 +27,7 @@ import DispatchBoard, { type BoardClient, type BoardVehicle } from "./DispatchBo
 import { dailyReportRow, reasonsTsv, reportRowTsv } from "@/lib/daily-report";
 import { qualificationSummary } from "@/lib/staffing";
 import { autoPlanDaily, autoPlanTraining, type PlanContext } from "@/lib/daily-plan";
-import { saveDaily } from "@/lib/data";
+import { getDaily, saveDaily } from "@/lib/data";
 import { links } from "@/lib/links";
 import { btnGreen, btnPrimary, btnSecondary, input, td, th } from "./ui";
 
@@ -70,10 +70,22 @@ const RUNS_OF_SESSION: Record<Session, RunKind[]> = { am: ["morning", "noon_drop
 let keySeq = 0;
 const newKey = () => `n${Date.now()}_${keySeq++}`;
 const renumber = (riders: DailyRun["riders"]) => riders.map((r, i) => ({ ...r, seq: i + 1 }));
+/** "2026-11-16 15:04:05" や ISO 形式 → "11/16 15:04" */
+const hm = (s: string | null | undefined) => {
+  if (!s) return "";
+  const t = s.includes("T") ? new Date(s).toLocaleString("sv-SE", { timeZone: "Asia/Tokyo" }) : s;
+  return t.slice(5, 16).replace("-", "/");
+};
 
 export default function DailyEditor({ initial, scheduled, planContext, slots, staff, clients, vehicles, origin }: Props) {
   const [d, setD] = useState<DailyDetail>(initial);
   const [dirty, setDirty] = useState(false);
+  /** 画面を開いた（前回保存した）ときのその日の勤務。保存のとき、この画面で変えた人の分だけシフト表へ反映する */
+  const [baseShifts, setBaseShifts] = useState(initial.shifts);
+  /** 別のパソコン・端末で、この日が先に保存されていたとき */
+  const [conflict, setConflict] = useState<{ rev: number; updated_at: string | null } | null>(null);
+  /** 画面に戻ったときに分かった、別の端末での保存 */
+  const [newer, setNewer] = useState(false);
   const [msg, setMsg] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [pending, start] = useTransition();
@@ -217,18 +229,71 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
     });
   };
   const noTrainerRegistered = !staff.some((s) => hasSkill(s, TRAINING_SKILLS));
-  const save = (then?: () => void) =>
+  /** 保存する。overRev を渡すと、別の端末で保存された版（overRev）の上にこちらの内容で上書きする */
+  const save = (then?: (ok: boolean) => void, overRev?: number) =>
     start(async () => {
       try {
-        await saveDaily(d);
-        setD((p) => ({ ...p, saved: true }));
+        const r = await saveDaily(d, baseShifts, overRev ?? d.rev ?? 0);
+        if (r.status === "conflict") {
+          setConflict({ rev: r.rev, updated_at: r.updated_at });
+          setMsg("");
+          then?.(false);
+          return;
+        }
+        setD((p) => ({ ...p, saved: true, rev: r.rev, updated_at: new Date().toISOString() }));
+        setBaseShifts(d.shifts);
         setDirty(false);
+        setConflict(null);
+        setNewer(false);
         setMsg(`保存しました（${new Date().toLocaleTimeString("ja-JP")}）`);
-        then?.();
+        then?.(true);
       } catch (e) {
         setMsg(`保存に失敗しました: ${(e as Error).message}`);
+        then?.(false);
       }
     });
+  /** 別の端末で保存された最新の内容を読み込む（こちらの変更は消える） */
+  const loadLatest = () =>
+    start(async () => {
+      const fresh = await getDaily(d.store_id, d.date);
+      setD(fresh);
+      setBaseShifts(fresh.shifts);
+      setDirty(false);
+      setConflict(null);
+      setNewer(false);
+      setMsg(`別のパソコン・端末で保存された内容（${hm(fresh.updated_at)}）を読み込みました。`);
+    });
+
+  // 別のタブ・アプリから戻ってきたとき、ほかの端末でこの日が保存されていないか確かめる
+  const state = useRef({ rev: d.rev ?? 0, dirty });
+  useEffect(() => {
+    state.current = { rev: d.rev ?? 0, dirty };
+  }, [d.rev, dirty]);
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const fresh = await getDaily(d.store_id, d.date).catch(() => undefined);
+      if (!fresh || (fresh.rev ?? 0) === state.current.rev) return;
+      if (state.current.dirty) return setNewer(true);
+      setD(fresh);
+      setBaseShifts(fresh.shifts);
+      setMsg(`別のパソコン・端末で保存された内容（${hm(fresh.updated_at)}）を読み込みました。`);
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [d.store_id, d.date]);
+
+  // 保存していない変更があるときは、ページを離れる前に確認する
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   const print = () => {
     const url = links.dailyPrint(d.store_id, d.date);
     if (!dirty && d.saved) {
@@ -236,8 +301,10 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
       return;
     }
     const w = window.open("about:blank", "_blank");
-    save(() => {
-      if (w) w.location.href = url;
+    save((ok) => {
+      if (!w) return;
+      if (ok) w.location.href = url;
+      else w.close();
     });
   };
 
@@ -265,7 +332,7 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
         <button onClick={auto} disabled={pending} className={btnPrimary}>
           ⚡ 送迎・時間割・担当を自動作成
         </button>
-        <button onClick={() => save()} disabled={pending || !dirty} className={btnGreen}>
+        <button onClick={() => save()} disabled={pending || !dirty || !!conflict} className={btnGreen}>
           💾 保存
         </button>
         <button onClick={print} disabled={pending} className={btnSecondary}>
@@ -276,7 +343,34 @@ export default function DailyEditor({ initial, scheduled, planContext, slots, st
           {dirty && !pending && <span className="ml-2 text-amber-700">未保存の変更があります</span>}
           {!d.saved && !dirty && <span className="ml-2 text-slate-500">（未保存の日です。出席予定は曜日別利用者枠から作っています）</span>}
         </span>
+        {d.updated_at && <span className="ml-auto text-xs text-slate-400">最終保存 {hm(d.updated_at)}</span>}
       </div>
+      {newer && !conflict && (
+        <div data-newer className="no-print flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>別のパソコン・端末で、この日のスケジュールが保存されました。このまま保存すると、どちらにするか確認が出ます。</span>
+          <button onClick={loadLatest} className={`${btnSecondary} text-xs`}>
+            向こうの内容を読み込む（こちらの変更は消えます）
+          </button>
+        </div>
+      )}
+      {conflict && (
+        <div data-conflict className="no-print space-y-2 rounded border-2 border-red-300 bg-red-50 p-3 text-sm">
+          <p className="font-bold text-red-800">
+            別のパソコン・端末で、この日のスケジュールが先に保存されていました（{hm(conflict.updated_at)}）。こちらの内容はまだ保存していません。
+          </p>
+          <p className="text-red-900">
+            どちらの内容を残すか選んでください。「向こうの内容を読み込む」を選ぶと、こちらで直した内容は消えます（必要なら別の画面に控えてから選んでください）。
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={loadLatest} disabled={pending} className={btnSecondary}>
+              向こうの内容を読み込む（こちらの変更は消えます）
+            </button>
+            <button onClick={() => save(undefined, conflict.rev)} disabled={pending} className={btnPrimary}>
+              こちらの内容で上書き保存する
+            </button>
+          </div>
+        </div>
+      )}
       {warnings.length > 0 && (
         <ul className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           {warnings.map((w) => (

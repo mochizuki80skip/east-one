@@ -46,7 +46,14 @@ export type Staff = {
   store_ids: string;
 };
 
-export type CareManager = { id: number; name: string; office: string; phone: string; fax: string; note: string };
+/** 居宅介護支援事業所（ケアマネの所属先） */
+export type Office = { id: number; name: string; phone: string; fax: string; address: string; note: string };
+
+/**
+ * ケアマネジャー。所属の居宅は office_id。office は表示用の居宅名（居宅の名前を変えたら一緒に直す）。
+ * phone はケアマネ個人の直通・携帯（居宅の電話は Office 側）。fax は以前のデータの名残り。
+ */
+export type CareManager = { id: number; office_id?: number | null; name: string; office: string; phone: string; fax: string; note: string };
 
 export type Vehicle = {
   id: number;
@@ -144,6 +151,9 @@ export type DailyDetail = {
   duties: DailyDuty[];
   /** スタッフごとの担当業務（空き時間の作業など） */
   tasks: DailyTask[];
+  /** 保存の版（別の端末で保存されたかを見分ける）と最終保存日時 */
+  rev?: number;
+  updated_at?: string;
 };
 
 export type MonthlyReport = {

@@ -1,6 +1,6 @@
 import { api, type BatchOp } from "./api";
 import type { Session } from "./constants";
-import { counts, listRoutes, listVehicles, saveStore } from "./data";
+import { counts, listRoutes, listVehicles, migrateCareManagers, saveStore } from "./data";
 
 /** 動作確認用のサンプル（すべて架空の名前）。店舗が 1 件もないときだけ投入する。 */
 export async function seedSample(): Promise<number | null> {
@@ -95,6 +95,7 @@ export async function seedSample(): Promise<number | null> {
     }),
   );
   const cmIds = cmRes.map((r) => Number(r.id));
+  await migrateCareManagers();
 
   const family = ["秋山", "石田", "宇野", "遠藤", "小川", "川口", "菊池", "久保", "小島", "斉藤", "清水", "杉本", "関", "高田", "千葉", "土屋", "中川", "西田", "野口", "浜田", "樋口", "福田", "堀", "松本", "宮本", "村上", "森田", "山口", "横山", "吉村"];
   const given = ["花子", "太郎", "春子", "一郎", "和子", "茂", "幸子", "清", "節子", "勇"];

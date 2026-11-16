@@ -86,11 +86,16 @@ export default function ClientForm({ storeId, client, slots, careManagers, route
           <label className={label}>担当ケアマネ</label>
           <select name="care_manager_id" defaultValue={client?.care_manager_id ?? ""} className={`${input} w-full`}>
             <option value="">未設定</option>
-            {careManagers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.office ? `${c.office} ` : ""}
-                {c.name}
-              </option>
+            {[...new Set(careManagers.map((c) => c.office))].map((office) => (
+              <optgroup key={office} label={office || "居宅未設定"}>
+                {careManagers
+                  .filter((c) => c.office === office)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}（{office || "居宅未設定"}）
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </div>

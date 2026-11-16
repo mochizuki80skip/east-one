@@ -5,6 +5,7 @@ import {
   importStaff,
   saveCareManager,
   saveClient,
+  saveOffice,
   saveRoute,
   saveStaff,
   saveStore,
@@ -124,10 +125,22 @@ export async function submitCareManager(fd: FormData) {
   if (!name) return;
   await saveCareManager({
     id: optId(fd, "id") ?? undefined,
+    office_id: optId(fd, "office_id"),
     name,
-    office: str(fd, "office"),
+    phone: str(fd, "phone"),
+    note: str(fd, "note"),
+  });
+}
+
+export async function submitOffice(fd: FormData) {
+  const name = str(fd, "name");
+  if (!name) return;
+  await saveOffice({
+    id: optId(fd, "id") ?? undefined,
+    name,
     phone: str(fd, "phone"),
     fax: str(fd, "fax"),
+    address: str(fd, "address"),
     note: str(fd, "note"),
   });
 }

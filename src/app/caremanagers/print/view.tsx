@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { listCareManagers, listStores } from "@/lib/data";
+import { listCareManagers, listOffices, listStores, migrateCareManagers } from "@/lib/data";
 import { CM_EXPORT_HEADER, careManagerTable } from "@/lib/caremanager-import";
 import { formatDateJa, todayStr } from "@/lib/date";
 import type { Client } from "@/lib/types";
@@ -15,9 +15,10 @@ const ROWS_PER_PAGE = 16;
 
 export default function CareManagersPrintView() {
   const { data, error } = useLoad(async () => {
-    const [cms, clients, stores] = await Promise.all([listCareManagers(), api.list<Client>("clients"), listStores()]);
+    await migrateCareManagers();
+    const [offices, cms, clients, stores] = await Promise.all([listOffices(), listCareManagers(), api.list<Client>("clients"), listStores()]);
     const name = new Map(stores.map((s) => [s.id, s.name]));
-    return careManagerTable(cms, clients.map((d) => d.data), (id) => name.get(id) ?? "", stores.length > 1);
+    return careManagerTable(offices, cms, clients.map((d) => d.data), (id) => name.get(id) ?? "", stores.length > 1);
   }, []);
   if (!data) return <Loading error={error} />;
   const pages: (string | number)[][][] = [];
@@ -39,7 +40,7 @@ export default function CareManagersPrintView() {
           <div className="mb-[3mm] flex items-end justify-between">
             <h1 className="text-[20px] font-bold">ケアマネジャー一覧</h1>
             <div className="text-[11px]">
-              {Number(todayStr().slice(0, 4))}年{formatDateJa(todayStr())} 現在　{data.length}名　{pages.length > 1 ? `${pi + 1}/${pages.length}` : ""}
+              {Number(todayStr().slice(0, 4))}年{formatDateJa(todayStr())} 現在　{pages.length > 1 ? `${pi + 1}/${pages.length}` : ""}
             </div>
           </div>
           <table className="w-full border-collapse text-[11px] leading-snug">
@@ -56,7 +57,13 @@ export default function CareManagersPrintView() {
               {rows.map((r, i) => (
                 <tr key={i}>
                   {r.map((v, j) => (
-                    <td key={j} className={`${cell} ${j === 4 ? "text-center" : ""} ${j === 2 || j === 3 ? "whitespace-nowrap" : ""}`}>
+                    <td
+                      key={j}
+                      className={`${cell} ${j === 5 ? "text-center" : ""} ${j >= 1 && j <= 4 ? "whitespace-nowrap" : ""} ${
+                        // 同じ居宅が続くときは居宅の欄を薄く
+                        j <= 2 && i > 0 && rows[i - 1][0] === r[0] ? "text-slate-300" : ""
+                      }`}
+                    >
                       {v}
                     </td>
                   ))}

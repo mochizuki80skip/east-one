@@ -18,7 +18,7 @@ export default function CareManagerImport({ onDone }: { onDone?: () => void }) {
     <div className="space-y-2 text-sm">
       <p className="text-slate-600">
         スプレッドシートでケアマネの一覧を選択してコピーし下に貼り付けるか、CSV ファイルを選んでください。1行目に「事業所」「ケアマネ名」「電話」「FAX」「メモ」などの見出しがあれば、列の順番は自由です（見出しが無いときはこの順番で読みます）。
-        同じ事業所・同じ名前の方は、空欄でない項目だけ上書きします。
+        事業所名ごとに居宅としてまとめ（無ければ新しく作り）、その居宅の所属ケアマネとして登録します。電話・FAX は居宅の電話・FAX になります。同じ居宅・同じ名前のケアマネは重ねて登録しません。
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">
@@ -94,7 +94,7 @@ export default function CareManagerImport({ onDone }: { onDone?: () => void }) {
             start(async () => {
               try {
                 const r = await importCareManagers(parsed!.list);
-                setMsg({ text: `取り込みました（新規 ${r.created}名 / 更新 ${r.updated}名）` });
+                setMsg({ text: `取り込みました（ケアマネ 新規 ${r.created}名 / 更新 ${r.updated}名${r.offices ? ` / 居宅を ${r.offices} 件追加` : ""}）` });
                 setText("");
                 setFileName("");
                 onDone?.();

@@ -8,7 +8,8 @@
  *  daily          `${店舗ID}:${日付}`   その日のスケジュール
  *  monthly        `${利用者ID}:${年月}` 月次報告
  */
-import { api, type BatchOp } from "./api";
+import { api, ApiError, type BatchOp } from "./api";
+import { mergeCells, type CellConflict, type CellMap } from "./merge";
 import { DEFAULT_DAYS, DEFAULT_PATTERNS, joinList, normalizeDuties, normalizeSkills, shiftWorks, splitList, type RunKind, type Session } from "./constants";
 import type { ImportedClient, ImportedStaff } from "./import";
 import { cmKey, type ImportedCareManager } from "./caremanager-import";
@@ -25,6 +26,7 @@ import type {
   DailyDetail,
   DailyRun,
   MonthlyReport,
+  Office,
   Route,
   Staff,
   Store,
@@ -179,47 +181,128 @@ export async function importStaff(storeId: number, list: ImportedStaff[]): Promi
   return { created, linked };
 }
 
-// ---------------- ケアマネ ----------------
+// ---------------- 居宅・ケアマネ ----------------
+const officeKey = (name: string) => cmKey(name, "");
+const byName = <T extends { name: string; id: number }>(a: T, b: T) => a.name.localeCompare(b.name, "ja") || a.id - b.id;
+
+export async function listOffices(): Promise<Office[]> {
+  return (await all<Office>("offices")).sort(byName);
+}
 export async function listCareManagers(): Promise<CareManager[]> {
   return (await all<CareManager>("care_managers")).sort((a, b) => a.office.localeCompare(b.office, "ja") || a.name.localeCompare(b.name, "ja") || a.id - b.id);
 }
-export async function saveCareManager(c: Omit<CareManager, "id"> & { id?: number }) {
-  return saveOne("care_managers", c.id, c);
-}
+
 /**
- * ケアマネ一覧の取り込み。同じ事業所・同じ名前の方は、空欄でない項目だけ上書きする。
- * 事業所が空欄の行・事業所が未登録の方は、名前だけで同じ人か判断する（同名が 1 人のときだけ）。
+ * 以前の「1 行にケアマネ 1 人（事業所名・電話・FAX をケアマネごとに入力）」のデータを、
+ * 「居宅 → 所属のケアマネ」の形に移す。居宅が未登録のケアマネがいるときだけ動く（何度呼んでも同じ結果）。
+ *  - 同じ事業所名のケアマネを 1 つの居宅にまとめ、電話・FAX は居宅へ移す
  */
-export async function importCareManagers(list: ImportedCareManager[]): Promise<{ created: number; updated: number }> {
-  const existing = await listCareManagers();
-  const byKey = new Map(existing.map((c) => [cmKey(c.office, c.name), c]));
-  const nameOnly = (name: string) => {
-    const same = existing.filter((c) => cmKey("", c.name) === cmKey("", name));
-    return same.length === 1 ? same[0] : undefined;
-  };
+export async function migrateCareManagers(): Promise<number> {
+  const [offices, cms] = await Promise.all([listOffices(), listCareManagers()]);
+  const officeIds = new Set(offices.map((o) => o.id));
+  const orphans = cms.filter((c) => c.office_id == null || !officeIds.has(c.office_id));
+  if (orphans.length === 0) return 0;
+  const byKey = new Map(offices.map((o) => [officeKey(o.name), o]));
+  // まだ無い居宅を作る
+  const groups = new Map<string, CareManager[]>();
+  for (const c of orphans) {
+    const name = c.office.trim() || "事業所名なし";
+    groups.set(name, [...(groups.get(name) ?? []), c]);
+  }
+  const toCreate = [...groups.keys()].filter((name) => !byKey.has(officeKey(name)));
+  const created = await api.batch(
+    toCreate.map((name) => {
+      const list = groups.get(name)!;
+      return put("offices", null, {
+        name,
+        phone: list.map((c) => c.phone).find(Boolean) ?? "",
+        fax: list.map((c) => c.fax).find(Boolean) ?? "",
+        address: "",
+        note: "",
+      });
+    }),
+  );
+  toCreate.forEach((name, i) => byKey.set(officeKey(name), { id: Number(created[i].id), name } as Office));
   const ops: BatchOp[] = [];
-  let created = 0;
-  let updated = 0;
-  for (const cm of list) {
-    const cur = byKey.get(cmKey(cm.office, cm.name)) ?? (!cm.office || !nameOnly(cm.name)?.office ? nameOnly(cm.name) : undefined);
-    if (cur) {
-      ops.push(
-        put("care_managers", cur.id, {
-          ...cur,
-          office: cm.office || cur.office,
-          phone: cm.phone || cur.phone,
-          fax: cm.fax || cur.fax,
-          note: cm.note || cur.note,
-        }),
-      );
-      updated++;
-    } else {
-      ops.push(put("care_managers", null, { ...cm }));
-      created++;
+  for (const [name, list] of groups) {
+    const o = byKey.get(officeKey(name))!;
+    const officePhone = list.map((c) => c.phone).find(Boolean) ?? "";
+    for (const c of list) {
+      // 居宅の電話と同じ番号はケアマネ側から外す（違う番号は直通として残す）
+      ops.push(put("care_managers", c.id, { ...c, office_id: o.id, office: o.name, phone: c.phone === officePhone ? "" : c.phone, fax: "" }));
     }
   }
   await api.batch(ops);
-  return { created, updated };
+  return orphans.length;
+}
+
+export async function saveOffice(o: Omit<Office, "id"> & { id?: number }): Promise<number> {
+  const id = await saveOne("offices", o.id, o);
+  // 居宅名を変えたら、所属のケアマネの表示用の居宅名も直す
+  if (o.id) {
+    const cms = (await listCareManagers()).filter((c) => c.office_id === o.id && c.office !== o.name);
+    await api.batch(cms.map((c) => put("care_managers", c.id, { ...c, office: o.name })));
+  }
+  return id;
+}
+/** 居宅を削除する（所属のケアマネがいるときは削除しない） */
+export async function deleteOffice(id: number): Promise<boolean> {
+  if ((await listCareManagers()).some((c) => c.office_id === id)) return false;
+  await api.batch([del("offices", id)]);
+  return true;
+}
+export async function saveCareManager(c: Omit<CareManager, "id" | "office" | "fax"> & { id?: number }) {
+  const office = c.office_id ? (await api.get<Office>("offices", c.office_id))?.data : undefined;
+  return saveOne("care_managers", c.id, { fax: "", ...(await merged("care_managers", c.id, c)), office: office?.name ?? "" });
+}
+/**
+ * ケアマネ一覧の取り込み（1 行にケアマネ 1 人。事業所名・電話・FAX は居宅として登録）。
+ *  - 同じ名前の居宅が無ければ作る。居宅の電話・FAX が空欄なら取り込んだ値を入れる
+ *  - 同じ居宅に同じ名前のケアマネがいれば、空欄でない項目だけ上書きする
+ */
+export async function importCareManagers(list: ImportedCareManager[]): Promise<{ created: number; updated: number; offices: number }> {
+  await migrateCareManagers();
+  const [offices, cms] = await Promise.all([listOffices(), listCareManagers()]);
+  const byKey = new Map(offices.map((o) => [officeKey(o.name), o]));
+  // 居宅
+  const officeOps: BatchOp[] = [];
+  const newNames: string[] = [];
+  for (const cm of list) {
+    const name = cm.office.trim() || "事業所名なし";
+    const cur = byKey.get(officeKey(name));
+    if (cur) {
+      if ((!cur.phone && cm.phone) || (!cur.fax && cm.fax)) {
+        const next = { ...cur, phone: cur.phone || cm.phone, fax: cur.fax || cm.fax };
+        byKey.set(officeKey(name), next);
+        officeOps.push(put("offices", cur.id, next));
+      }
+    } else if (!newNames.some((n) => officeKey(n) === officeKey(name))) newNames.push(name);
+  }
+  const created = await api.batch(
+    newNames.map((name) => {
+      const first = list.find((cm) => officeKey(cm.office.trim() || "事業所名なし") === officeKey(name))!;
+      return put("offices", null, { name, phone: first.phone, fax: first.fax, address: "", note: "" });
+    }),
+  );
+  newNames.forEach((name, i) => byKey.set(officeKey(name), { id: Number(created[i].id), name, phone: "", fax: "", address: "", note: "" }));
+  await api.batch(officeOps);
+  // ケアマネ
+  const ops: BatchOp[] = [];
+  let createdCm = 0;
+  let updated = 0;
+  for (const cm of list) {
+    const o = byKey.get(officeKey(cm.office.trim() || "事業所名なし"))!;
+    const cur = cms.find((c) => c.office_id === o.id && cmKey("", c.name) === cmKey("", cm.name));
+    if (cur) {
+      ops.push(put("care_managers", cur.id, { ...cur, note: cm.note || cur.note }));
+      updated++;
+    } else {
+      ops.push(put("care_managers", null, { office_id: o.id, office: o.name, name: cm.name, phone: "", fax: "", note: cm.note }));
+      createdCm++;
+    }
+  }
+  await api.batch(ops);
+  return { created: createdCm, updated, offices: newNames.length };
 }
 export async function deleteCareManager(id: number) {
   const clients = await all<ClientWithSlots>("clients");
@@ -441,13 +524,6 @@ const toCells = (m: Record<string, string>): Cell[] =>
     return { staff_id: Number(sid), date, code };
   });
 
-export async function getShiftCells(storeId: number, ym: string): Promise<Cell[]> {
-  return toCells((await api.get<CellsDoc>("shifts", `${storeId}:${ym}`))?.data.cells ?? {});
-}
-export async function getShiftRequests(staffIds: number[], ym: string): Promise<Cell[]> {
-  const ids = new Set(staffIds);
-  return toCells((await api.get<CellsDoc>("shift_requests", ym))?.data.cells ?? {}).filter((c) => ids.has(c.staff_id));
-}
 /** 他店舗で勤務が入っている日（`${staffId}|${date}`） */
 export async function getBusyElsewhere(storeId: number, staffIds: number[], ym: string): Promise<Set<string>> {
   const ids = new Set(staffIds);
@@ -462,14 +538,56 @@ export async function getBusyElsewhere(storeId: number, staffIds: number[], ym: 
   }
   return out;
 }
-export async function saveShiftMonth(storeId: number, ym: string, staffIds: number[], cells: Cell[], requests: Cell[]) {
+/** 版つきで 1 件読む（版が無い古いデータは 0） */
+async function getWithRev<T>(c: string, id: string): Promise<{ data: T | undefined; rev: number; updated_at: string }> {
+  const d = await api.get<T>(c, id);
+  return { data: d?.data, rev: d ? revOf(d.data) : 0, updated_at: d?.updated_at ?? "" };
+}
+const isConflict = (e: unknown, c?: string) => e instanceof ApiError && e.status === 409 && (!c || e.conflict?.c === c);
+export const cellMapOf = (cells: Cell[]): CellMap => Object.fromEntries(cells.filter((c) => c.code).map((c) => [`${c.staff_id}|${c.date}`, c.code]));
+
+/** シフト表（その店舗・その月）と、その月の希望休を、版つきで読む */
+export async function getShiftMonth(storeId: number, staffIds: number[], ym: string): Promise<{ cells: Cell[]; requests: Cell[]; rev: number }> {
   const ids = new Set(staffIds);
-  const reqDoc = (await api.get<CellsDoc>("shift_requests", ym))?.data.cells ?? {};
-  const mergedReq = Object.fromEntries(Object.entries(reqDoc).filter(([k]) => !ids.has(Number(k.split("|")[0]))));
-  for (const r of requests) if (r.code && ids.has(r.staff_id)) mergedReq[`${r.staff_id}|${r.date}`] = r.code;
-  const cellMap: Record<string, string> = {};
-  for (const c of cells) if (c.code && ids.has(c.staff_id)) cellMap[`${c.staff_id}|${c.date}`] = c.code;
-  await api.batch([put("shifts", `${storeId}:${ym}`, { cells: cellMap }), put("shift_requests", ym, { cells: mergedReq })]);
+  const [s, r] = await Promise.all([getWithRev<CellsDoc>("shifts", `${storeId}:${ym}`), getWithRev<CellsDoc>("shift_requests", ym)]);
+  return { cells: toCells(s.data?.cells ?? {}), requests: toCells(r.data?.cells ?? {}).filter((c) => ids.has(c.staff_id)), rev: s.rev };
+}
+/** シフト表の版だけを読む（別の端末で保存されたかを確かめる） */
+export async function getShiftRev(storeId: number, ym: string): Promise<number> {
+  return (await getWithRev<CellsDoc>("shifts", `${storeId}:${ym}`)).rev;
+}
+
+export type ShiftSaveResult =
+  | { status: "saved"; cells: CellMap; requests: CellMap; rev: number; fromOthers: number }
+  | { status: "conflict"; conflicts: CellConflict[] };
+/**
+ * シフト表を保存する。サーバーの最新の内容を読み直し、この画面で変えたマスだけを重ねて保存する
+ * （別の端末で別のマスを直していても消えない）。同じマスを両方で違う内容にしていたら conflict を返す
+ * （prefer を付けて呼び直すと、こちら／向こうを優先して保存する）。
+ */
+export async function saveShiftMonth(
+  storeId: number,
+  ym: string,
+  base: { cells: CellMap; requests: CellMap },
+  mine: { cells: CellMap; requests: CellMap },
+  prefer?: "mine" | "theirs",
+): Promise<ShiftSaveResult> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const [s, r] = await Promise.all([getWithRev<CellsDoc>("shifts", `${storeId}:${ym}`), getWithRev<CellsDoc>("shift_requests", ym)]);
+    const mc = mergeCells(base.cells, mine.cells, s.data?.cells ?? {}, prefer);
+    if (mc.conflicts.length) return { status: "conflict", conflicts: mc.conflicts };
+    const mr = mergeCells(base.requests, mine.requests, r.data?.cells ?? {}, "mine");
+    try {
+      const res = await api.batch([
+        { ...put("shifts", `${storeId}:${ym}`, { cells: mc.merged }), rev: s.rev } as BatchOp,
+        { ...put("shift_requests", ym, { cells: mr.merged }), rev: r.rev } as BatchOp,
+      ]);
+      return { status: "saved", cells: mc.merged, requests: mr.merged, rev: res[0]?.rev ?? s.rev + 1, fromOthers: mc.fromOthers };
+    } catch (e) {
+      if (!isConflict(e)) throw e; // 読み直してから保存するまでの間に別の端末が保存した → もう一度
+    }
+  }
+  throw new Error("ほかの端末からの保存が続いているため保存できませんでした。少し待ってからもう一度保存してください。");
 }
 
 // ---------------- 日々のスケジュール ----------------
@@ -500,24 +618,26 @@ export async function getDaily(storeId: number, date: string): Promise<DailyDeta
       training: (d.training ?? []).filter((t) => known.has(t.client_id)),
       duties: normalizeDuties(d.duties ?? []),
       tasks: d.tasks ?? [],
+      rev: revOf(d),
+      updated_at: dailyDoc.updated_at,
     };
   }
   // 未保存の日: 曜日別利用者枠から出席予定を作る
   const attendance = scheduledAttendance(clients, date);
-  return { store_id: storeId, date, memo: "", saved: false, shifts, attendance, runs: [], training: [], duties: [], tasks: [] };
+  return { store_id: storeId, date, memo: "", saved: false, shifts, attendance, runs: [], training: [], duties: [], tasks: [], rev: 0, updated_at: "" };
 }
 
-export async function saveDaily(detail: DailyDetail) {
+export type DailySaveResult = { status: "saved"; rev: number } | { status: "conflict"; rev: number; updated_at: string | null };
+/**
+ * 日々のスケジュールを保存する。
+ *  - detail.rev（画面を開いたときの版）のあとに別の端末でこの日が保存されていたら、保存せずに conflict を返す
+ *    （向こうの版 rev を渡して呼び直すと、こちらの内容で上書きする）
+ *  - その日の勤務の変更はシフト表へ反映する。シフト表は最新を読み直して、この画面で変えた人の分だけ重ねる
+ */
+export async function saveDaily(detail: DailyDetail, baseShifts: { staff_id: number; code: string }[], rev = detail.rev ?? 0): Promise<DailySaveResult> {
   const ym = detail.date.slice(0, 7);
-  const shiftDoc = (await api.get<CellsDoc>("shifts", `${detail.store_id}:${ym}`))?.data.cells ?? {};
-  const cells = { ...shiftDoc };
-  // その日のシフトをシフト表へ反映（急な休みなど）
-  for (const s of detail.shifts) {
-    const k = `${s.staff_id}|${detail.date}`;
-    if (s.code) cells[k] = s.code;
-    else delete cells[k];
-  }
-  const doc: DailyDoc & { updated_at: string } = {
+  const baseCode = new Map(baseShifts.map((s) => [s.staff_id, s.code]));
+  const doc = {
     memo: detail.memo,
     attendance: detail.attendance.map((a) => ({ ...a, reason: a.status === "absent" ? a.reason : "" })),
     // 空のグループ（車両・運転者も未定）は保存しない
@@ -527,7 +647,28 @@ export async function saveDaily(detail: DailyDetail) {
     tasks: detail.tasks.filter((t) => t.task.trim()),
     updated_at: new Date().toISOString(),
   };
-  await api.batch([put("daily", `${detail.store_id}:${detail.date}`, doc), put("shifts", `${detail.store_id}:${ym}`, { cells })]);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const shift = await getWithRev<CellsDoc>("shifts", `${detail.store_id}:${ym}`);
+    const cells = { ...(shift.data?.cells ?? {}) };
+    // その日の勤務の変更（急な休みなど）をシフト表へ。この画面で変えた人の分だけ
+    for (const s of detail.shifts) {
+      if (s.code === (baseCode.get(s.staff_id) ?? "")) continue;
+      const k = `${s.staff_id}|${detail.date}`;
+      if (s.code) cells[k] = s.code;
+      else delete cells[k];
+    }
+    try {
+      const res = await api.batch([
+        { ...put("daily", `${detail.store_id}:${detail.date}`, doc), rev } as BatchOp,
+        { ...put("shifts", `${detail.store_id}:${ym}`, { cells }), rev: shift.rev } as BatchOp,
+      ]);
+      return { status: "saved", rev: res[0]?.rev ?? rev + 1 };
+    } catch (e) {
+      if (isConflict(e, "daily")) return { status: "conflict", rev: (e as ApiError).conflict!.rev, updated_at: (e as ApiError).conflict!.updated_at };
+      if (!isConflict(e, "shifts")) throw e; // シフト表だけが先に保存されていた → 読み直してもう一度
+    }
+  }
+  throw new Error("ほかの端末からの保存が続いているため保存できませんでした。少し待ってからもう一度保存してください。");
 }
 
 async function dailyDocsBetween(storeId: number, from: string, to: string) {

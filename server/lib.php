@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 /** 保存できるデータの種類 */
 const COLLECTIONS = [
-    'stores', 'staff', 'care_managers', 'vehicles', 'routes', 'clients',
+    'stores', 'staff', 'offices', 'care_managers', 'vehicles', 'routes', 'clients',
     'shifts', 'shift_requests', 'daily', 'monthly',
 ];
 /** 連番の ID を振るデータの種類 */
-const NUMBERED = ['stores', 'staff', 'care_managers', 'vehicles', 'routes', 'clients'];
+const NUMBERED = ['stores', 'staff', 'offices', 'care_managers', 'vehicles', 'routes', 'clients'];
 
 function config(): array
 {

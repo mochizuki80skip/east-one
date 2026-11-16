@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { getBusyElsewhere, getShiftCells, getShiftRequests, getStore, listStaff } from "@/lib/data";
+import { getBusyElsewhere, getShiftMonth, getStore, listStaff } from "@/lib/data";
 import { addMonths, formatYmJa, monthDates } from "@/lib/date";
 import { splitList } from "@/lib/constants";
 import { links } from "@/lib/links";
@@ -16,8 +16,8 @@ export default function ShiftView() {
   const { data, error } = useLoad(async () => {
     const [store, staff] = await Promise.all([getStore(sid), listStaff({ storeId: sid, activeOnly: true })]);
     const ids = staff.map((s) => s.id);
-    const [cells, requests, busy] = await Promise.all([getShiftCells(sid, ym), getShiftRequests(ids, ym), getBusyElsewhere(sid, ids, ym)]);
-    return { store, staff, cells, requests, busy };
+    const [month, busy] = await Promise.all([getShiftMonth(sid, ids, ym), getBusyElsewhere(sid, ids, ym)]);
+    return { store, staff, cells: month.cells, requests: month.requests, rev: month.rev, busy };
   }, [sid, ym]);
   if (!data) return <Loading error={error} />;
   const { store, staff } = data;
@@ -71,6 +71,7 @@ export default function ShiftView() {
           }}
           initialCells={data.cells}
           initialRequests={data.requests}
+          initialRev={data.rev}
           busy={[...data.busy]}
         />
       )}

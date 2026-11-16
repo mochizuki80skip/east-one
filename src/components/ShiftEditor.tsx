@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { isTimeRange, REQUEST_CODES, SHIFT_CODES, shiftLabel, shiftWeight, shiftWorks, WEEKDAYS } from "@/lib/constants";
 import { autoShift, checkShift, SOFT_REQUEST, type ShiftRules } from "@/lib/shift-auto";
-import { saveShiftMonth, type Cell } from "@/lib/data";
+import { cellMapOf, getShiftMonth, getShiftRev, saveShiftMonth, type Cell } from "@/lib/data";
+import type { CellConflict } from "@/lib/merge";
 import { btnGreen, btnPrimary, btnSecondary } from "./ui";
 
 type StaffRow = {
@@ -28,6 +29,8 @@ type Props = {
   rules: ShiftRules;
   initialCells: Cell[];
   initialRequests: Cell[];
+  /** シフト表の版（別の端末で保存されたかを見分ける） */
+  initialRev: number;
   busy: string[];
 };
 
@@ -64,9 +67,16 @@ function codeStyle(code: string): string {
 
 const CONTRACT_SHORT: Record<string, string> = { 正社員: "正", 時短社員: "時短", パート: "パ" };
 
-export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialCells, initialRequests, busy }: Props) {
+export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialCells, initialRequests, initialRev, busy }: Props) {
   const [cells, setCells] = useState<Record<string, string>>(() => toMap(initialCells));
   const [requests, setRequests] = useState<Record<string, string>>(() => toMap(initialRequests));
+  /** 画面を開いた（前回保存した）ときの内容と版。保存のとき、この画面で変えたマスだけを最新に重ねる */
+  const [base, setBase] = useState(() => ({ cells: cellMapOf(initialCells), requests: cellMapOf(initialRequests) }));
+  const [rev, setRev] = useState(initialRev);
+  /** 同じマスを別の端末でも違う内容に変えていたとき */
+  const [conflicts, setConflicts] = useState<CellConflict[] | null>(null);
+  /** 画面に戻ったときに分かった、別の端末での保存 */
+  const [newer, setNewer] = useState(false);
   const [mode, setMode] = useState<"shift" | "request">("shift");
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
@@ -119,16 +129,72 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
     });
   };
 
-  const save = () =>
+  const myStaff = useMemo(() => new Set(staff.map((s) => s.id)), [staff]);
+  const mine = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([, v]) => v));
+  const applySaved = (c: Record<string, string>, r: Record<string, string>, nextRev: number) => {
+    const myReq = Object.fromEntries(Object.entries(r).filter(([k]) => myStaff.has(Number(k.split("|")[0]))));
+    setCells(c);
+    setRequests(myReq);
+    setBase({ cells: c, requests: myReq });
+    setRev(nextRev);
+    setDirty(false);
+    setConflicts(null);
+    setNewer(false);
+  };
+
+  /** 保存する。別の端末の変更があれば、この画面で変えたマスだけを重ねる（同じマスを違う内容にしていたら確認） */
+  const save = (prefer?: "mine" | "theirs") =>
     start(async () => {
       try {
-        await saveShiftMonth(storeId, ym, staff.map((s) => s.id), toCells(cells), toCells(requests));
-        setDirty(false);
-        setMsg(`保存しました（${new Date().toLocaleTimeString("ja-JP")}）`);
+        const r = await saveShiftMonth(storeId, ym, base, { cells: mine(cells), requests: mine(requests) }, prefer);
+        if (r.status === "conflict") {
+          setConflicts(r.conflicts);
+          setMsg("");
+          return;
+        }
+        applySaved(r.cells, r.requests, r.rev);
+        setMsg(
+          `保存しました（${new Date().toLocaleTimeString("ja-JP")}）` +
+            (r.fromOthers ? `。別のパソコン・端末で直された ${r.fromOthers} マスも合わせて表示しています` : ""),
+        );
       } catch (e) {
         setMsg(`保存に失敗しました: ${(e as Error).message}`);
       }
     });
+
+  // 別のタブ・アプリから戻ってきたとき、ほかの端末で保存されていないか確かめる
+  const state = useRef({ rev, dirty });
+  useEffect(() => {
+    state.current = { rev, dirty };
+  }, [rev, dirty]);
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const latest = await getShiftRev(storeId, ym).catch(() => state.current.rev);
+      if (latest === state.current.rev) return;
+      if (state.current.dirty) return setNewer(true);
+      const m = await getShiftMonth(storeId, staff.map((s) => s.id), ym);
+      applySaved(cellMapOf(m.cells), cellMapOf(m.requests), m.rev);
+      setMsg("別のパソコン・端末で保存されたシフトを読み込みました。");
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 店舗・月が変わったときだけ付け直す
+  }, [storeId, ym]);
+
+  // 保存していない変更があるときは、ページを離れる前に確認する
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const staffName = (id: number) => staff.find((s) => s.id === id)?.name ?? "（他店のスタッフ）";
 
   const workDays = (sid: number) => dates.reduce((n, d) => n + shiftWeight(cells[`${sid}|${d}`]), 0);
   const paidDays = (sid: number) =>
@@ -160,7 +226,7 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
         <button onClick={() => runAuto("all")} disabled={pending} className={btnSecondary}>
           全て作り直す
         </button>
-        <button onClick={save} disabled={pending || !dirty} className={btnGreen}>
+        <button onClick={() => save()} disabled={pending || !dirty || !!conflicts} className={btnGreen}>
           💾 保存
         </button>
         <button onClick={() => window.print()} className={btnSecondary}>
@@ -171,6 +237,51 @@ export default function ShiftEditor({ storeId, ym, dates, staff, rules, initialC
           {dirty && !pending && <span className="ml-2 text-amber-700">未保存の変更があります</span>}
         </span>
       </div>
+
+      {newer && !conflicts && (
+        <p data-newer className="no-print rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          別のパソコン・端末でこの月のシフトが保存されました。保存すると、向こうで直したマスとこちらで直したマスを合わせて保存します（同じマスを違う内容にしていたら確認します）。
+        </p>
+      )}
+      {conflicts && (
+        <div data-conflict className="no-print space-y-2 rounded border-2 border-red-300 bg-red-50 p-3 text-sm">
+          <p className="font-bold text-red-800">別のパソコン・端末でも、同じマスが違う内容に直されていました（{conflicts.length} マス）。まだ保存していません。</p>
+          <p className="text-red-900">ほかのマスの変更は両方とも残ります。下のマスだけ、どちらにするか選んでください。</p>
+          <table className="border bg-white text-xs">
+            <thead>
+              <tr>
+                <th className="border px-2 py-1">スタッフ</th>
+                <th className="border px-2 py-1">日付</th>
+                <th className="border px-2 py-1">こちら</th>
+                <th className="border px-2 py-1">向こう（先に保存）</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conflicts.map((c) => {
+                const [sid, d] = c.key.split("|");
+                return (
+                  <tr key={c.key}>
+                    <td className="border px-2 py-1">{staffName(Number(sid))}</td>
+                    <td className="border px-2 py-1">
+                      {Number(d.slice(5, 7))}/{Number(d.slice(8, 10))}
+                    </td>
+                    <td className="border px-2 py-1 font-semibold">{c.mine ? shiftLabel(c.mine) : "（空欄）"}</td>
+                    <td className="border px-2 py-1 font-semibold">{c.theirs ? shiftLabel(c.theirs) : "（空欄）"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => save("mine")} disabled={pending} className={btnPrimary}>
+              こちらを優先して保存
+            </button>
+            <button onClick={() => save("theirs")} disabled={pending} className={btnSecondary}>
+              向こうを優先して保存
+            </button>
+          </div>
+        </div>
+      )}
 
       {mode === "request" && (
         <div className="no-print space-y-1 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">

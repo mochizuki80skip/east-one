@@ -55,17 +55,26 @@ export function parseCareManagers(text: string): { list: ImportedCareManager[]; 
     : { list, header: headerAt >= 0, hint: "ケアマネ名が見つかりませんでした。1行目に「事業所」「ケアマネ名」「電話」「FAX」などの見出しを入れてください。" };
 }
 
-/** 書き出し（Excel・PDF）用の表。担当利用者は利用中・休止中の方（終了した方は除く） */
-export const CM_EXPORT_HEADER = ["事業所", "ケアマネ名", "電話", "FAX", "担当利用者数", "担当利用者", "メモ"] as const;
+/** 書き出し（Excel・PDF）用の表。居宅ごと・ケアマネごとに 1 行。担当利用者は利用中・休止中の方（終了した方は除く） */
+export const CM_EXPORT_HEADER = ["居宅（事業所）", "居宅の電話", "居宅のFAX", "ケアマネ名", "ケアマネ直通", "担当利用者数", "担当利用者", "メモ"] as const;
 export function careManagerTable(
-  cms: { id: number; office: string; name: string; phone: string; fax: string; note: string }[],
+  offices: { id: number; name: string; phone: string; fax: string; note: string }[],
+  cms: { id: number; office_id?: number | null; office: string; name: string; phone: string; note: string }[],
   clients: { name: string; status: string; care_manager_id: number | null; store_id: number }[],
   storeName: (id: number) => string,
   multiStore: boolean,
 ): (string | number)[][] {
-  return cms.map((c) => {
-    const mine = clients.filter((x) => x.care_manager_id === c.id && x.status !== "終了");
+  const rows: (string | number)[][] = [];
+  const row = (o: (typeof offices)[number] | undefined, c: (typeof cms)[number] | undefined) => {
+    const mine = c ? clients.filter((x) => x.care_manager_id === c.id && x.status !== "終了") : [];
     const names = mine.map((x) => (multiStore ? `${x.name}（${storeName(x.store_id)}）` : x.name));
-    return [c.office, c.name, c.phone, c.fax, mine.length, names.join("、"), c.note];
-  });
+    rows.push([o?.name ?? c?.office ?? "", o?.phone ?? "", o?.fax ?? "", c?.name ?? "", c?.phone ?? "", c ? mine.length : "", names.join("、"), [o?.note, c?.note].filter(Boolean).join(" / ")]);
+  };
+  for (const o of offices) {
+    const list = cms.filter((c) => c.office_id === o.id);
+    if (list.length === 0) row(o, undefined);
+    for (const c of list) row(o, c);
+  }
+  for (const c of cms.filter((c) => !offices.some((o) => o.id === c.office_id))) row(undefined, c);
+  return rows;
 }
