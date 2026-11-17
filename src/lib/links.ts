@@ -1,7 +1,9 @@
 /** 画面の URL（静的書き出しのため、店舗や日付はクエリで渡す） */
 const q = (path: string, params: Record<string, string | number | undefined>) => {
   const p = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "") as [string, string][]);
-  return `${path}${p.size ? `?${p}` : ""}`;
+  // URLSearchParams の size は Safari 17（iOS 17）より前には無いため、文字にしてから判断する
+  const qs = p.toString();
+  return qs ? `${path}?${qs}` : path;
 };
 
 export const links = {

@@ -71,3 +71,17 @@ test("以前のスキル名・担当名を今の名前にそろえる（メデ�
     [{ session: "am", duty: "体操", staff_id: 1 }],
   );
 });
+
+import { links } from "./links";
+
+test("画面の URL: 店舗・日付が付く（古いブラウザでも同じ）", () => {
+  const size = Object.getOwnPropertyDescriptor(URLSearchParams.prototype, "size");
+  try {
+    // iOS 16 など、URLSearchParams.size が無いブラウザと同じ状態にする
+    if (size) delete (URLSearchParams.prototype as { size?: number }).size;
+    assert.equal(links.daily(1, "2026-11-17"), "/store/daily/?store=1&date=2026-11-17");
+    assert.equal(links.staff(), "/staff/");
+  } finally {
+    if (size) Object.defineProperty(URLSearchParams.prototype, "size", size);
+  }
+});

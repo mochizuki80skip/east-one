@@ -23,6 +23,15 @@ export type UpdateNote = {
 
 export const UPDATES: UpdateNote[] = [
   {
+    id: "2026-11-17-1",
+    date: "2026-11-17",
+    kind: "修正",
+    title: "iPad・iPhone などで「今日のスケジュール」が開けない不具合",
+    items: [
+      "少し前の iPad・iPhone（iOS 16 など）や古いブラウザで、「今日のスケジュール」などのボタンを押すと店舗が分からなくなり、「店舗が見つかりません」となっていたのを直しました。",
+    ],
+  },
+  {
     id: "2026-11-16-1",
     date: "2026-11-16",
     kind: "変更",
