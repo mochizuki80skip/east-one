@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: __SITE_URL__/sitemap.xml
+Sitemap: https://east-one.hachimaru-80skip.com/sitemap.xml

@@ -17,7 +17,7 @@
 **方針**
 - 静的HTML（1ページ構成）。自社でサーバーにアップロード
 - フレームワーク・ビルドツールなし。`index.html` 1枚にCSS/JSを内包
-- 現行サイト `breamseastone.com` を置き換える想定。公開ドメインは別ドメインで検討中
+- 現行サイト `breamseastone.com` を置き換える。公開アドレスは `https://east-one.hachimaru-80skip.com/`（エックスサーバー。業務システム eastone-data と同じ親ドメインのサブドメイン）
 
 ---
 
@@ -26,7 +26,7 @@
 サーバーに置くものは `public_html/` にまとめた。設置手順は `README.md`。
 
 ```
-public_html/                アップロードするもの（実際は tools/package.py で dist/ に書き出してから）
+public_html/                アップロードするもの（サブドメインの公開フォルダ /hachimaru-80skip.com/public_html/east-one/ へ）
   index.html                トップページ
   juyojiko.html             重要事項・運営規程／処遇改善／運営推進会議 議事録（【要記入】あり）
   privacy.html              プライバシーポリシー（【要記入】あり）
@@ -46,11 +46,11 @@ public_html/                アップロードするもの（実際は tools/pac
     voice-*.jpg             利用者様の声 900×675
 
 build_preview.py            画像を埋め込んだ確認用ファイルを preview/ に生成（全ページ）
-tools/package.py            __SITE_URL__ を本番アドレスに置換して dist/public_html と zip を生成
+tools/package.py            未記入箇所を確認して dist/public_html と zip を生成
 tools/make_icons.py         ファビコン・OGP画像の生成
 ```
 
-`__SITE_URL__` は canonical・OGP・構造化データ・robots.txt・sitemap.xml に入っている。ドメイン確定後に `python3 tools/package.py https://ドメイン` で置き換えた一式を作ってアップロードする。
+公開アドレスは canonical・OGP・構造化データ・robots.txt・sitemap.xml・.htaccess に直接書いてある。.htaccess は http や `hachimaru-80skip.com/east-one/` 経由のアクセスを `https://east-one.hachimaru-80skip.com/` に301転送する。
 
 ---
 
@@ -208,7 +208,7 @@ CSS変数は `index.html` の `:root` にある。色を変えるときはここ
 「運営推進会議 議事録」「処遇改善（職場環境等要件）」は `juyojiko.html` の `#suishin` `#shogu` に枠を作成済み。議事録PDFは `public_html/minutes/` に置いてリンクする想定。
 
 **A-2. 公開作業**
-- ドメイン取得・サーバー契約・アップロード
+- サブドメイン `east-one` の追加・SSL有効化・アップロード（ドメインは決定済み）
 - 旧ドメイン `breamseastone.com` からの301リダイレクト設定
 - 介護サービス情報公表システムに登録しているURLの更新
 - エックスサーバー（スタンダード）に設置する前提で `README.md` に手順を記載

@@ -19,14 +19,14 @@
 - `public_html/404.html` / `sub.css` / `.htaccess` / `robots.txt` / `sitemap.xml` / アイコン類
 - `public_html/images/` … 画像一式
 - `build_preview.py` … 画像を埋め込んだ確認用ファイルを `preview/` に作る
-- `tools/package.py` … `__SITE_URL__` を本番アドレスに置き換えて `dist/` にアップロード用一式を作る
+- `tools/package.py` … 未記入箇所を確認し、`dist/` にアップロード用一式（zip 付き）を作る
 - `tools/make_icons.py` … ファビコン・OGP画像を作り直す
 
 **HTML を編集したら必ず `python3 build_preview.py` を実行して見た目を確認する。**
 相対パスの画像はローカルやチャットのプレビューで表示されないため、確認用の埋め込み版が必要。
 
-**`__SITE_URL__` は消さない。** OGP・canonical・構造化データ・サイトマップで使うサイトのアドレスの置き場所で、
-`tools/package.py` が書き出し時に置き換える。
+**公開アドレスは `https://east-one.hachimaru-80skip.com`**（Xサーバー、`hachimaru-80skip.com` のサブドメイン）。
+canonical・OGP・構造化データ・robots.txt・sitemap.xml・.htaccess に直接書いてある。ページを増やしたら sitemap.xml にも足す。
 
 `【要記入】` `【要確認】` は未記入の箇所（黄色で表示される）。`tools/package.py` が残数を知らせる。
 
@@ -89,7 +89,7 @@ PC `clamp(28px,3.3vw,40px)` / モバイル `clamp(22px,7vw,34px)`。
 ## 次にやること（優先順）
 
 1. `juyojiko.html` の【要記入】【要確認】を埋める（法定の掲載義務。公開に必須）
-2. ドメイン決定 → `tools/package.py` で一式を作って公開、旧サイトからの301リダイレクト
+2. サブドメイン追加・SSL有効化 → アップロード（README.md）、旧サイトからの301リダイレクト
 3. GA4・Clarity の ID を `index.html` の `EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` に入れる（計測コードは実装済み）
 4. Google Search Console 登録・サイトマップ送信
 
