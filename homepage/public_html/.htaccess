@@ -1,0 +1,47 @@
+# East-one ホームページ（公開フォルダ public_html の直下に置く .htaccess）
+Options -Indexes
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+AddDefaultCharset UTF-8
+
+RewriteEngine On
+
+# http でアクセスされたら https へ（Xサーバーの無料独自SSLが有効になってから働く）
+RewriteCond %{HTTPS} !on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# www あり／なしを1つにそろえる（検索エンジンの評価が分散しないように）
+# ドメインが決まったら、使わないほうに合わせて下の2行の先頭の # を外す
+# 例：www なしに統一する場合
+# RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+# RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+# /index.html を / にそろえる
+RewriteCond %{THE_REQUEST} \s/index\.html[\s?]
+RewriteRule ^index\.html$ / [R=301,L]
+
+# 作業用のファイルを誤ってアップロードしても見られないようにする
+<FilesMatch "\.(md|py|sh|zip|bak|log)$|^preview-single-file\.html$">
+  Require all denied
+</FilesMatch>
+
+# 文字・画像の圧縮（表示を速くする）
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript application/json image/svg+xml application/xml
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 7 days"
+  ExpiresByType image/png "access plus 7 days"
+  ExpiresByType image/x-icon "access plus 30 days"
+  ExpiresByType image/vnd.microsoft.icon "access plus 30 days"
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
