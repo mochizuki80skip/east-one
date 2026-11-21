@@ -118,7 +118,7 @@ a{color:inherit}
 .hero-slides li{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
 .hero-slides li.is-active{opacity:1}
 .hero-slides img{width:100%;height:100%;object-fit:cover;transform:scale(1);transition:transform 6.5s linear}
-.hero-slides li.is-active img{transform:scale(1.05)}
+.hero-slides li.is-active img{transform:scale(1.03)}
 /* 見出しは写真の左下に重ねる。1行ずつ白い帯にする */
 .hero h1{position:absolute;left:clamp(16px,2.6vw,36px);bottom:clamp(18px,2.6vw,34px);z-index:2;margin:0;font-family:var(--display);font-weight:900;font-size:clamp(28px,3.3vw,40px);line-height:1.3;letter-spacing:.02em}
 .hero h1 span{display:block;width:fit-content;background:#fff;color:var(--ink);padding:.2em .45em;margin:.32em 0 0;box-shadow:0 6px 18px rgba(46,37,48,.22);white-space:nowrap}
@@ -336,18 +336,17 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
 .gcard img{display:block;max-width:100%;width:auto;height:auto;max-height:46px}
 .gcard img.tall{max-height:84px}
 .gcard img.mark{max-height:34px}
+.gcard img.mid{max-height:60px}
 .gc-navy{border-color:#1F2752}
 .gc-brown{border-color:#B0936C}
 .gc-orange{border-color:#EE6A2F}
 .gc-name{font-size:17px}
 .gc-sub{font-size:13.5px;color:#463E4D}
 .gc-row{display:flex;flex-direction:column;align-items:center;gap:6px}
-.gc-ones{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:400;font-size:24px;letter-spacing:.04em;line-height:1.1;color:#2E2530}
 @media(max-width:1000px){.group-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gcard{height:108px}}
 @media(max-width:480px){
   .gcard{padding:8px 6px}
   .gc-name{font-size:16px}
-  .gc-ones{font-size:20px}
   .gcard img{max-height:38px}
 }
 
@@ -421,10 +420,10 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
     <div class="wrap">
       <div class="hero-stage" id="heroSlider" aria-roledescription="carousel" aria-label="East-oneでの一場面">
         <ul class="hero-slides">
-          <li class="is-active"><img src="images/hero-1.jpg" alt="血圧を測りながら利用者様と笑い合うスタッフ" width="1000" height="750" fetchpriority="high" style="object-position:55% 35%"></li>
+          <li class="is-active"><img src="images/hero-1-hd.jpg" alt="血圧を測りながら利用者様と笑い合うスタッフ" width="1600" height="1200" fetchpriority="high" style="object-position:55% 35%"></li>
           <li><img src="images/concept.jpg" alt="利用者様とスタッフが手を取り合う様子" width="1400" height="788" style="object-position:50% 40%"></li>
-          <li><img src="images/hero-3.jpg" alt="平行棒で歩行訓練をする利用者様とスタッフ" width="1000" height="750" style="object-position:50% 25%"></li>
-          <li><img src="images/prog-reharhythm.jpg" alt="音楽に合わせて体を動かすハチマルスキップリハリズムの様子" width="900" height="675" style="object-position:50% 35%"></li>
+          <li><img src="images/hero-3-hd.jpg" alt="平行棒で歩行訓練をする利用者様とスタッフ" width="1600" height="1200" style="object-position:50% 25%"></li>
+          <li><img src="images/hero-reharhythm-hd.jpg" alt="音楽に合わせて体を動かすハチマルスキップリハリズムの様子" width="1600" height="1200" style="object-position:50% 35%"></li>
         </ul>
         <h1><span>はずむ<em>カラダ</em>と</span><span><em>ココロ</em>をつくる</span><span>フィットネスデイサービス</span></h1>
         <div class="hero-ctrl" id="heroCtrl"></div>
@@ -945,12 +944,12 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
           <li><a class="gcard " href="https://treatment.shizuoka.jp/" target="_blank" rel="noopener" aria-label="静岡交通事故治療接骨院ガイド（新しいタブで開きます）"><span class="gc-row"><img class="mark" src="images/group/80skip-mark.png" alt="" width="115" height="120" loading="lazy"><span class="gc-name">静岡交通事故治療<br>接骨院ガイド</span></span></a></li>
           <li><a class="gcard gc-navy" href="https://arrowzgym-shizuoka.com/" target="_blank" rel="noopener" aria-label="アローズジム（新しいタブで開きます）"><img src="images/group/arrowz.png" alt="スポーツ科学センター ARROWZ" width="446" height="94" loading="lazy"><span class="gc-sub">アローズジム</span></a></li>
           <li><a class="gcard gc-navy" href="https://arrowzlab-shizuoka.com/" target="_blank" rel="noopener" aria-label="アローズラボ（新しいタブで開きます）"><img src="images/group/arrowz.png" alt="スポーツ科学センター ARROWZ" width="446" height="94" loading="lazy"><span class="gc-sub">アローズラボ</span></a></li>
-          <li><div class="gcard "><!-- 【要記入】ミツカル接骨院のリンク先URL。分かったら div を a に変えて href を入れる --><img src="images/group/mitsukaru.png" alt="ミツカル接骨院" width="624" height="120" loading="lazy"></div></li>
-          <li><a class="gcard gc-brown" href="https://acupuncture-treatment.jp/" target="_blank" rel="noopener" aria-label="リカバリー鍼灸院（新しいタブで開きます）"><span class="gc-name">リカバリー鍼灸院</span></a></li>
+          <li><a class="gcard " href="https://mitsukaru.style/" target="_blank" rel="noopener" aria-label="ミツカル接骨院（新しいタブで開きます）"><img src="images/group/mitsukaru.png" alt="ミツカル接骨院" width="624" height="120" loading="lazy"></a></li>
+          <li><a class="gcard gc-brown" href="https://acupuncture-treatment.jp/" target="_blank" rel="noopener" aria-label="リカバリー鍼灸院（新しいタブで開きます）"><img class="mid" src="images/group/recovery.png" alt="リカバリー鍼灸院" width="356" height="120" loading="lazy"></a></li>
           <li><a class="gcard " href="https://mamako-care.com/" target="_blank" rel="noopener" aria-label="ママとこどものからだケア（新しいタブで開きます）"><img class="tall" src="images/group/mamakocare.png" alt="ママとこどものからだケア mama・ko・care" width="334" height="220" loading="lazy"></a></li>
           <li><a class="gcard " href="https://natsume.healthcare/" target="_blank" rel="noopener" aria-label="なつめ接骨院（新しいタブで開きます）"><span class="gc-row"><img class="mark" src="images/group/natsume-mark.png" alt="" width="220" height="100" loading="lazy"><span class="gc-name">なつめ接骨院</span></span></a></li>
-          <li><a class="gcard gc-orange" href="https://www.ones-body.com/" target="_blank" rel="noopener" aria-label="パーソナルジム ONE’S BODY（新しいタブで開きます）"><span class="gc-sub">パーソナルジム</span><span class="gc-ones">ONE’S BODY</span></a></li>
-          <li><a class="gcard " href="https://wakusuki.jp/" target="_blank" rel="noopener" aria-label="福利厚生サービス（新しいタブで開きます）"><span class="gc-name">福利厚生サービス</span><span class="gc-sub">wakusuki.jp</span><!-- 【要確認】サービス名・ロゴ --></a></li>
+          <li><a class="gcard gc-orange" href="https://www.ones-body.com/" target="_blank" rel="noopener" aria-label="パーソナルジム ONE’S BODY（新しいタブで開きます）"><img src="images/group/onesbody.png" alt="パーソナルジム ONE’S BODY" width="498" height="120" loading="lazy"></a></li>
+          <li><a class="gcard " href="https://wakusuki.jp/" target="_blank" rel="noopener" aria-label="ワクスキ（福利厚生サービス・新しいタブで開きます）"><img src="images/group/wakusuki.png" alt="ワクスキ 従業員の健康が、会社の力になる。" width="205" height="58" loading="lazy"></a></li>
       </ul>
     </div>
   </section>
