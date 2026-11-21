@@ -16,6 +16,7 @@
 - `public_html/index.html` … トップページ。CSSとJSを内包
 - `public_html/juyojiko.html` … 重要事項・運営規程／処遇改善／運営推進会議（法定掲載）
 - `public_html/privacy.html` … プライバシーポリシー
+- `public_html/analytics.js` … アクセス解析（GA4・Clarity）。全ページ共通。イベント一覧と設定手順は `docs/analytics.md`
 - `public_html/404.html` / `sub.css` / `.htaccess` / `robots.txt` / `sitemap.xml` / アイコン類
 - `public_html/images/` … 画像一式
 - `build_preview.py` … 画像を埋め込んだ確認用ファイルを `preview/` に作る
@@ -90,7 +91,7 @@ PC `clamp(28px,3.3vw,40px)` / モバイル `clamp(22px,7vw,34px)`。
 
 1. `juyojiko.html` の【要記入】【要確認】を埋める（法定の掲載義務。公開に必須）
 2. サブドメイン追加・SSL有効化 → アップロード（README.md）、旧サイトからの301リダイレクト
-3. GA4・Clarity の ID を `index.html` の `EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` に入れる（計測コードは実装済み）
+3. GA4・Clarity の ID を `analytics.js` の `EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` に入れる（計測コードは実装済み。設定手順は `docs/analytics.md`）
 4. Google Search Console 登録・サイトマップ送信
 
 詳細は `HANDOFF.md` の「残タスク」を参照。

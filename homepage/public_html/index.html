@@ -383,7 +383,7 @@ section{padding:84px 0}
     </div>
   </section>
 
-  <section class="doors">
+  <section class="doors" id="entrance">
     <div class="wrap">
       <div class="doors-grid">
         <a class="door" href="#concept">
@@ -937,69 +937,7 @@ section{padding:84px 0}
 })();
 </script>
 
-<script>
-/* ===== アクセス解析（GA4 / Microsoft Clarity） =====
-   IDを入れるまでは何も読み込まず、何も送信しません。
-   GA4 は「G-」で始まる測定ID、Clarity はプロジェクトID（英数字10桁前後）を入れる。 */
-var EASTONE_GA4_ID = '';      // 例: 'G-XXXXXXXXXX'
-var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
-
-(function(){
-  var ga = EASTONE_GA4_ID, cl = EASTONE_CLARITY_ID;
-
-  if(cl){
-    (function(c,l,a,r,i,t,y){
-      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", cl);
-  }
-  if(!ga) return;
-
-  var s = document.createElement('script');
-  s.async = true;
-  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(ga);
-  document.head.appendChild(s);
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function(){ dataLayer.push(arguments); };
-  gtag('js', new Date());
-  gtag('config', ga);
-
-  /* 電話・LINE・見学/体験ボタンのタップ */
-  var STORE_BY_TEL = {'0559417807':'本店','0559886006':'三島店','0559555185':'長泉店'};
-  document.addEventListener('click', function(e){
-    var a = e.target.closest ? e.target.closest('a[href]') : null;
-    if(!a) return;
-    var href = a.getAttribute('href');
-    var box = a.closest('section[id], header, footer');
-    var where = box ? (box.id || box.tagName.toLowerCase()) : '';
-    if(href.indexOf('tel:') === 0){
-      var num = href.slice(4).replace(/\D/g, '');
-      gtag('event', 'tel_tap', {store: STORE_BY_TEL[num] || num, link_location: where});
-    }else if(href.indexOf('lin.ee') !== -1){
-      gtag('event', 'line_click', {link_location: where});
-    }else if(href === '#contact'){
-      gtag('event', 'trial_click', {link_text: a.textContent.trim().slice(0, 40), link_location: where});
-    }
-  });
-
-  /* どこまで読まれたか（各セクションが1秒以上画面に入っていたら1回だけ送信。
-     ボタンで #contact へ移動するときに通り過ぎただけのセクションは数えない） */
-  if(!('IntersectionObserver' in window)) return;
-  var ids = ['why','program','flow','voices','stores','caremanager'];
-  var timers = {};
-  var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){
-      var id = en.target.id;
-      if(!en.isIntersecting){ clearTimeout(timers[id]); return; }
-      timers[id] = setTimeout(function(){
-        gtag('event', 'section_view', {section: id});
-        io.unobserve(en.target);
-      }, 1000);
-    });
-  }, {threshold: 0.25});
-  ids.forEach(function(id){ var el = document.getElementById(id); if(el) io.observe(el); });
-})();
-</script>
+<!-- アクセス解析（ID は analytics.js の先頭に入れる） -->
+<script src="analytics.js" defer></script>
 </body>
 </html>

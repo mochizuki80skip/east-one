@@ -22,7 +22,7 @@ SRC = os.path.join(ROOT, "public_html")
 DIST = os.path.join(ROOT, "dist")
 OUT = os.path.join(DIST, "public_html")
 ZIP = os.path.join(DIST, "eastone-homepage.zip")
-TEXT_EXT = (".html", ".txt", ".xml", ".css", ".htaccess")
+TEXT_EXT = (".html", ".txt", ".xml", ".css", ".js", ".htaccess")
 SITE = "https://east-one.hachimaru-80skip.com"
 
 
@@ -54,12 +54,12 @@ def main() -> None:
 
     print("作成しました: dist/public_html/ と dist/eastone-homepage.zip（公開アドレス: %s）" % SITE)
 
-    with open(os.path.join(OUT, "index.html"), encoding="utf-8") as f:
+    with open(os.path.join(OUT, "analytics.js"), encoding="utf-8") as f:
         idx = f.read()
     if "EASTONE_GA4_ID = ''" in idx:
-        print("  注意: GA4 の測定IDが未設定です（index.html の EASTONE_GA4_ID）")
+        print("  注意: GA4 の測定IDが未設定です（analytics.js の EASTONE_GA4_ID）")
     if "EASTONE_CLARITY_ID = ''" in idx:
-        print("  注意: Microsoft Clarity のIDが未設定です（index.html の EASTONE_CLARITY_ID）")
+        print("  注意: Microsoft Clarity のIDが未設定です（analytics.js の EASTONE_CLARITY_ID）")
     for path, n in todos:
         print("  注意: %s に未記入の箇所が %d か所あります（【要記入】【要確認】）" % (path, n))
 

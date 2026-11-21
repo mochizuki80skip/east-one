@@ -64,6 +64,11 @@ def build(page: str) -> None:
         css = f.read()
     html = re.sub(r'<link rel="stylesheet" href="/?sub\.css">', "<style>\n%s</style>" % css, html)
 
+    # アクセス解析のスクリプトを埋め込む（ID が空なら何もしない）
+    with open(os.path.join(PUB, "analytics.js"), encoding="utf-8") as f:
+        js = f.read()
+    html = re.sub(r'<script src="/?analytics\.js" defer></script>', lambda m: "<script>\n%s</script>" % js, html)
+
     html = re.sub(r'src="/?images/([^"]+)"', lambda m: 'src="%s"' % data_uri(m.group(1)), html)
     if re.search(r'src="/?images/', html):
         sys.exit("エラー: %s に埋め込めなかった画像参照が残っています" % page)

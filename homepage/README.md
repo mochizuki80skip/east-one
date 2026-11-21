@@ -15,6 +15,7 @@ homepage/
     privacy.html          プライバシーポリシー（アクセス解析の説明を含む）
     404.html              ページが見つからないときの表示
     sub.css               下層ページ共通のスタイル
+    analytics.js          アクセス解析（GA4・Clarity）。ID はこのファイルの先頭に入れる
     .htaccess             https への転送・圧縮・キャッシュなどのサーバー設定
     robots.txt / sitemap.xml   検索エンジン向け
     favicon.ico / icon-192.png / apple-touch-icon.png   ブラウザ・スマホのアイコン
@@ -99,24 +100,15 @@ RewriteRule ^(.*)$ https://east-one.hachimaru-80skip.com/ [R=301,L]
 
 ## 6. アクセス解析（GA4・Microsoft Clarity）を入れる
 
-`public_html/index.html` の下のほうにある次の2行に ID を入れて、`index.html` だけアップロードし直します。ID が空のあいだは何も読み込まず、何も送信しません。
+計測コードは `public_html/analytics.js` にまとめてあり、全ページが読み込んでいます。
+先頭の2行に ID を入れて、`analytics.js` だけアップロードし直せば計測が始まります。ID が空のあいだは何も読み込まず、何も送信しません。
 
 ```js
 var EASTONE_GA4_ID = '';      // 例: 'G-XXXXXXXXXX'
 var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
 ```
 
-入れると、次の操作が GA4 に「イベント」として記録されます。
-
-| イベント名 | 内容 |
-| --- | --- |
-| `tel_tap` | 電話番号のタップ。`store` に本店・三島店・長泉店、`link_location` に押された場所 |
-| `line_click` | 公式LINEのボタン |
-| `trial_click` | 見学・無料体験のボタン |
-| `section_view` | 各セクション（半日型の理由・プログラム・1日の流れ・利用者様の声・施設一覧・ケアマネージャーの方へ）まで読まれた |
-
-GA4 の管理画面で `store` と `section` を「カスタム定義（イベントスコープ）」に登録すると、レポートで店舗別・セクション別に見られます。
-GA4 は設置した日からのデータしか取れないので、公開と同時に入れてください。
+ID の取り方、GA4 で最初にやる設定、クリック率や問い合わせ率の見方、チラシ・LINE からの訪問を見分ける方法は [docs/analytics.md](docs/analytics.md) にまとめています。
 
 ## 7. 公開後に Google に知らせる
 

@@ -31,6 +31,7 @@ public_html/                アップロードするもの（サブドメイン�
   juyojiko.html             重要事項・運営規程／処遇改善／運営推進会議 議事録（【要記入】あり）
   privacy.html              プライバシーポリシー（【要記入】あり）
   404.html, sub.css         404ページ、下層ページ共通CSS
+  analytics.js              アクセス解析（GA4・Clarity）。IDは先頭の2行
   .htaccess                 https転送・/index.html の正規化・圧縮・キャッシュ・作業ファイルの閲覧禁止
   robots.txt, sitemap.xml
   favicon.ico, icon-192.png, apple-touch-icon.png
@@ -216,7 +217,7 @@ CSS変数は `index.html` の `:root` にある。色を変えるときはここ
 
 ### B. 公開前に入れたい
 
-**B-1. アクセス解析の実装**　→ コードは実装済み。`index.html` の `EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` にIDを入れるだけ（空なら何も読み込まない）。イベント名は README.md 参照
+**B-1. アクセス解析の実装**　→ コードは実装済み（`analytics.js`、全ページ共通）。`EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` にIDを入れるだけ（空なら何も読み込まない）。イベント一覧・GA4の初期設定・レポートの見方・UTM は `docs/analytics.md`
 ユーザーから実装の依頼あり。必要なのはGA4測定ID（`G-` で始まる）とMicrosoft ClarityのプロジェクトID。
 
 実装予定の内容：
