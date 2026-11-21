@@ -217,7 +217,7 @@ CSS変数は `index.html` の `:root` にある。色を変えるときはここ
 
 ### B. 公開前に入れたい
 
-**B-1. アクセス解析の実装**　→ コードは実装済み（`analytics.js`、全ページ共通）。`EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` にIDを入れるだけ（空なら何も読み込まない）。イベント一覧・GA4の初期設定・レポートの見方・UTM は `docs/analytics.md`
+**B-1. アクセス解析の実装**　→ GA4 測定ID G-NP91P6K4F6 を設定済み（80SKIP アカウント内の新しいプロパティ）。Clarity は未設定。コードは実装済み（`analytics.js`、全ページ共通）。`EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` にIDを入れるだけ（空なら何も読み込まない）。イベント一覧・GA4の初期設定・レポートの見方・UTM は `docs/analytics.md`
 ユーザーから実装の依頼あり。必要なのはGA4測定ID（`G-` で始まる）とMicrosoft ClarityのプロジェクトID。
 
 実装予定の内容：

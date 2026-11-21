@@ -91,7 +91,7 @@ PC `clamp(28px,3.3vw,40px)` / モバイル `clamp(22px,7vw,34px)`。
 
 1. `juyojiko.html` の【要記入】【要確認】を埋める（法定の掲載義務。公開に必須）
 2. サブドメイン追加・SSL有効化 → アップロード（README.md）、旧サイトからの301リダイレクト
-3. GA4・Clarity の ID を `analytics.js` の `EASTONE_GA4_ID` / `EASTONE_CLARITY_ID` に入れる（計測コードは実装済み。設定手順は `docs/analytics.md`）
+3. GA4 は設定済み（G-NP91P6K4F6）。GA4 側の初期設定（キーイベント・カスタムディメンション・保持期間）と Clarity の ID 設定が残り（`docs/analytics.md`）
 4. Google Search Console 登録・サイトマップ送信
 
 詳細は `HANDOFF.md` の「残タスク」を参照。
