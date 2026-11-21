@@ -111,39 +111,42 @@ a{color:inherit}
   .tel-label-long{display:none}
 }
 
-/* ---------- hero ---------- */
-.hero{background:var(--pink);color:#fff;padding:66px 0 0}
-.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
-.hero h1{font-family:var(--display);font-weight:900;font-size:clamp(28px,3.3vw,40px);line-height:1.5;letter-spacing:.01em;margin:0 0 20px}
-.br-sp{display:none}
-.hero-lead{font-size:17.5px;line-height:1.95;margin:0 0 24px;color:#fff;max-width:30em}
-.keywords{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:0 0 28px;font-family:var(--display);font-weight:700}
+/* ---------- hero（写真3枚のコラージュ＋白い帯の見出し） ---------- */
+.hero{background:var(--pink);color:#fff;padding:32px 0 56px}
+.hero-stage{display:grid;grid-template-columns:2fr 3fr;grid-template-rows:1fr 1fr;gap:6px;height:clamp(440px,46vw,580px);border-radius:22px;overflow:hidden;background:#fff}
+.hero-stage .ph{margin:0;overflow:hidden;min-height:0}
+.hero-stage .ph img{width:100%;height:100%;object-fit:cover}
+.ph-a{grid-column:1;grid-row:1}
+.ph-b{grid-column:1;grid-row:2}
+.ph-main{grid-column:2;grid-row:1/3}
+/* 見出しは写真の上に重ねる。1行ずつ白い帯にする */
+.hero h1{grid-column:1/3;grid-row:1/3;align-self:center;justify-self:start;z-index:1;margin:0 0 0 clamp(16px,2.6vw,36px);font-family:var(--display);font-weight:900;font-size:clamp(28px,3.3vw,40px);line-height:1.3;letter-spacing:.02em}
+.hero h1 span{display:block;width:fit-content;background:#fff;color:var(--ink);padding:.2em .45em;margin:.32em 0;box-shadow:0 6px 18px rgba(46,37,48,.2);white-space:nowrap}
+.hero h1 em{font-style:normal;color:var(--pink)}
+.hero-body{display:grid;grid-template-columns:1.25fr 1fr;gap:22px 48px;align-items:center;margin-top:34px}
+.hero-lead{font-size:18px;line-height:1.95;margin:0 0 18px;color:#fff}
+.keywords{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:0;font-family:var(--display);font-weight:700}
 .keywords span{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:7px 15px;font-size:15px;white-space:nowrap}
-.hero-actions{display:flex;flex-wrap:wrap;gap:14px;padding-bottom:56px}
+.hero-actions{display:flex;flex-direction:column;gap:14px}
 .btn{display:inline-block;font-family:var(--display);font-weight:700;font-size:17px;text-decoration:none;padding:16px 28px;border-radius:6px;border:2px solid transparent;text-align:center}
 .btn-primary{background:#fff;color:var(--pink-deep)}
 .btn-primary:hover{background:#FBEAF3}
 .btn-ghost{border-color:#fff;color:#fff}
 .btn-ghost:hover{background:rgba(255,255,255,.18)}
-.hero-slider{position:relative;aspect-ratio:4/3;margin-bottom:56px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.12)}
-.hero-slider img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
-.hero-slider img.is-active{opacity:1}
-.hero-dots{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;gap:10px}
-.hero-dots button{width:11px;height:11px;padding:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.95);background:transparent;cursor:pointer}
-.hero-dots button[aria-current="true"]{background:#fff}
-@media(prefers-reduced-motion:reduce){.hero-slider img{transition:none}}
 @media(max-width:880px){
-  .hero{padding-top:40px}
-  .hero-grid{grid-template-columns:1fr;gap:30px}
-  .hero-actions{padding-bottom:0}
-  .hero-slider{margin-bottom:40px;order:-1}
+  .hero{padding:20px 0 44px}
+  .hero-stage{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;height:auto;border-radius:16px;gap:4px}
+  .ph-main{grid-column:1/3;grid-row:1;aspect-ratio:4/3}
+  .ph-a{grid-column:1;grid-row:2;aspect-ratio:4/3}
+  .ph-b{grid-column:2;grid-row:2;aspect-ratio:4/3}
+  /* スマホは大きい写真の下側に重ねる */
+  .hero h1{grid-column:1/3;grid-row:1;align-self:end;margin:0 0 12px 10px;font-size:clamp(19px,6vw,30px)}
+  .hero h1 span{margin:.26em 0;padding:.16em .4em}
+  .hero-body{grid-template-columns:1fr;margin-top:26px}
   .btn{width:100%}
-  .br-sp{display:inline}
-  .hero h1{font-size:clamp(22px,7vw,34px);line-height:1.55}
 }
 @media(max-width:420px){
   .wrap{padding:0 20px}
-  .hero-lead{font-size:16.5px}
   .keywords span{font-size:14px;padding:6px 13px}
 }
 
@@ -281,6 +284,8 @@ section{padding:84px 0}
 .cm-box h3{font-family:var(--display);font-weight:900;font-size:20px;margin:0 0 12px}
 .cm-box p{font-size:16px;line-height:2;color:#FFF3F9;margin:0 0 18px}
 @media(max-width:860px){.cm-grid{grid-template-columns:1fr;gap:28px}}
+.cm-grid>*{min-width:0}
+@media(max-width:420px){.chart-box,.cm-box{padding:20px 16px}.chart-panel{padding:16px 12px}.chart-panel .ratio-svg{width:104px;height:104px}.chart-panel .ratio-body{gap:12px}}
 
 /* fee */
 .fee-table{width:100%;border-collapse:collapse;font-size:15.5px}
@@ -316,16 +321,63 @@ section{padding:84px 0}
 .btn-ig svg{width:20px;height:20px;flex:none}
 
 /* footer */
+/* group（80SKIPグループ） */
+.group{padding:64px 0 72px}
+.group-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.gcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:100px;padding:10px 12px;background:#fff;border:2px solid #1BA6E0;color:var(--ink);text-decoration:none;text-align:center;font-family:var(--display);font-weight:700;line-height:1.35;transition:box-shadow .2s,transform .2s}
+a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);transform:translateY(-2px)}
+.gc-navy{border-color:#1F2752}
+.gc-brown{border-color:#9C8460}
+.gc-name{font-size:18px}
+.gc-sub{font-size:13.5px;color:#463E4D}
+.gc-en{font-size:15px;letter-spacing:.16em;color:#3A3A3A}
+.gc-arrowz{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-style:italic;font-weight:900;font-size:27px;line-height:1.05;color:#1F2752;letter-spacing:.02em}
+.gc-row{display:flex;align-items:center;gap:8px}
+.gc-dots{width:30px;height:18px;flex:none}
+@media(max-width:860px){.group-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gcard{height:92px}}
+@media(max-width:480px){
+  .gcard{padding:8px 6px}
+  .gc-row{flex-direction:column;gap:4px}
+  .gc-en{font-size:13.5px;letter-spacing:.06em}
+  .gc-arrowz{font-size:21px}
+  .gc-name{font-size:16.5px}
+}
+
+/* 追従バナー（見学・無料体験の相談・申し込み） */
+.float-cta{position:fixed;right:20px;bottom:20px;z-index:60;width:280px;opacity:0;visibility:hidden;transform:translateY(24px);transition:opacity .3s,transform .3s,visibility .3s}
+.float-cta.is-shown{opacity:1;visibility:visible;transform:none}
+.fc-card{position:relative;background:#fff;border:2px solid var(--pink);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(46,37,48,.25)}
+.fc-title{margin:0;background:var(--pink);color:#fff;font-family:var(--display);font-weight:900;font-size:20px;line-height:1.45;padding:14px 46px 14px 18px}
+.fc-text{margin:0;padding:12px 18px 0;font-size:15px;line-height:1.8;color:var(--ink)}
+.fc-actions{display:flex;flex-direction:column;gap:8px;padding:12px 18px 18px}
+.fc-btn{display:block;text-align:center;font-family:var(--display);font-weight:700;font-size:16.5px;text-decoration:none;padding:11px 10px;border-radius:8px;color:#fff}
+.fc-trial{background:var(--pink-deep)}
+.fc-trial:hover{background:#8E2F61}
+.fc-line{background:#05943F}
+.fc-line:hover{background:#047A34}
+.fc-close{position:absolute;top:9px;right:9px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;font-size:22px;line-height:1;cursor:pointer}
+.fc-close:hover{background:rgba(255,255,255,.4)}
+@media(max-width:880px){
+  .float-cta{left:0;right:0;bottom:0;width:auto;transform:translateY(100%)}
+  .fc-card{border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:0 -4px 16px rgba(46,37,48,.15)}
+  .fc-title,.fc-text,.fc-close{display:none}
+  .fc-actions{flex-direction:row;padding:10px 12px}
+  .fc-btn{flex:1;padding:13px 6px;font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.float-cta{transition:none}}
+
 .site-footer{background:var(--pink);color:#fff;padding:56px 0 30px;font-size:14.5px;line-height:1.95}
 .footer-logo{width:170px;height:auto;margin-bottom:18px}
-.footer-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;padding-bottom:34px;border-bottom:1px solid rgba(255,255,255,.4)}
+.footer-grid{display:grid;grid-template-columns:1fr 2fr;gap:40px;padding-bottom:34px;border-bottom:1px solid rgba(255,255,255,.4)}
+.footer-sitemap{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
 .site-footer h3{font-family:var(--display);color:#fff;font-size:17px;font-weight:700;margin:0 0 12px}
 .site-footer p{margin:0}
 .site-footer a{color:#fff}
 .footer-links{list-style:none;margin:0;padding:0}
 .footer-links li{padding:5px 0}
 .copyright{padding-top:22px;font-size:13.5px;color:rgba(255,255,255,.85)}
-@media(max-width:760px){.footer-grid{grid-template-columns:1fr;gap:28px}}
+@media(max-width:960px){.footer-grid{grid-template-columns:1fr;gap:32px}}
+@media(max-width:620px){.footer-sitemap{grid-template-columns:1fr 1fr;gap:24px 20px}}
 
 :focus-visible{outline:3px solid var(--pink-deep);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
@@ -359,25 +411,24 @@ section{padding:84px 0}
 
   <section class="hero" id="top">
     <div class="wrap">
-      <div class="hero-grid">
+      <div class="hero-stage">
+        <figure class="ph ph-main"><img src="images/hero-1.jpg" alt="血圧を測りながら利用者様と笑い合うスタッフ" width="1000" height="750" fetchpriority="high"></figure>
+        <figure class="ph ph-a"><img src="images/hero-3.jpg" alt="平行棒で歩行訓練をする利用者様とスタッフ" width="1000" height="750"></figure>
+        <figure class="ph ph-b"><img src="images/hero-2.jpg" alt="施術ベッドで利用者様に寄り添うスタッフ" width="1000" height="750"></figure>
+        <h1><span>はずむ<em>カラダ</em>と</span><span><em>ココロ</em>をつくる</span><span>フィットネスデイサービス</span></h1>
+      </div>
+      <div class="hero-body">
         <div>
-          <h1>はずむカラダと<br class="br-sp">ココロをつくる<br>フィットネスデイサービス</h1>
           <p class="hero-lead">毎回の運動×整体×イベントで、短い時間で楽しみながら人生の質を高める。静岡県東部・裾野市／三島市／長泉町の機能訓練施設です。</p>
           <p class="keywords">
             <span>イキイキ運動</span>
             <span>スッキリ整体</span>
             <span>ワクワク体験イベント</span>
           </p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="#contact">見学・無料体験を申し込む</a>
-            <a class="btn btn-ghost" href="#caremanager">ケアマネージャーの方へ</a>
-          </div>
         </div>
-        <div class="hero-slider" id="heroSlider" aria-roledescription="carousel" aria-label="East-oneでの一場面">
-          <img class="is-active" src="images/hero-1.jpg" alt="血圧を測りながら利用者様と笑い合うスタッフ" width="1000" height="750">
-          <img src="images/hero-2.jpg" alt="施術ベッドで利用者様に寄り添うスタッフ" width="1000" height="750" loading="lazy">
-          <img src="images/hero-3.jpg" alt="平行棒で歩行訓練をする利用者様とスタッフ" width="1000" height="750" loading="lazy">
-          <div class="hero-dots" id="heroDots"></div>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#contact">見学・無料体験を申し込む</a>
+          <a class="btn btn-ghost" href="#caremanager">ケアマネージャーの方へ</a>
         </div>
       </div>
     </div>
@@ -870,7 +921,40 @@ section{padding:84px 0}
     </div>
   </section>
 
+  <section id="group" class="group">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="sec-lead">グループ企業</p>
+        <h2>80SKIPグループ</h2>
+        <p>East-oneは、接骨院・鍼灸院・スポーツ施設などを運営する80SKIPグループの一員です。</p>
+      </div>
+      <ul class="group-grid">
+          <li><a class="gcard " href="https://hachimaru-80skip.com/" target="_blank" rel="noopener" aria-label="HACHIMARU SKIP（新しいタブで開きます）"><span class="gc-row"><svg class="gc-dots" viewBox="0 0 30 18" aria-hidden="true"><circle cx="8" cy="9" r="6" fill="none" stroke="#1BA6E0" stroke-width="3"/><circle cx="22" cy="9" r="6" fill="none" stroke="#1BA6E0" stroke-width="3"/></svg><span class="gc-en">HACHIMARU SKIP</span></span></a></li>
+          <li><div class="gcard "><!-- 【要記入】静岡交通事故治療接骨院ガイドのリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-name">静岡交通事故治療<br>接骨院ガイド</span></div></li>
+          <li><div class="gcard gc-navy"><!-- 【要記入】アローズジムのリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-sub">スポーツ科学センター</span><span class="gc-arrowz">ARROWZ</span><span class="gc-sub">アローズジム</span></div></li>
+          <li><div class="gcard gc-navy"><!-- 【要記入】アローズラボのリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-sub">スポーツ科学センター</span><span class="gc-arrowz">ARROWZ</span><span class="gc-sub">アローズラボ</span></div></li>
+          <li><div class="gcard "><!-- 【要記入】ミツカル接骨院のリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-name">ミツカル接骨院</span></div></li>
+          <li><div class="gcard gc-brown"><!-- 【要記入】リカバリー鍼灸院のリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-name">リカバリー鍼灸院</span></div></li>
+          <li><div class="gcard "><!-- 【要記入】ママとこどものからだケアのリンク先URL。分かったら div を a に変えて href を入れる --><span class="gc-sub">ママとこどものからだケア</span><span class="gc-name">mama・ko・care</span></div></li>
+          <li><a class="gcard " href="https://natsume.healthcare/" target="_blank" rel="noopener" aria-label="なつめ接骨院（新しいタブで開きます）"><span class="gc-row"><svg class="gc-dots" viewBox="0 0 30 18" aria-hidden="true"><circle cx="8" cy="9" r="6" fill="none" stroke="#1BA6E0" stroke-width="3"/><circle cx="22" cy="9" r="6" fill="none" stroke="#1BA6E0" stroke-width="3"/></svg><span class="gc-name">なつめ接骨院</span></span></a></li>
+      </ul>
+    </div>
+  </section>
+
 </main>
+
+<!-- 追従バナー：トップの写真を過ぎると表示、お問い合わせ欄から下では隠す（PC は右下のカード、スマホは画面下のボタン） -->
+<aside class="float-cta" id="float-cta" aria-label="見学・無料体験のご案内" hidden>
+  <div class="fc-card">
+    <p class="fc-title">見学・無料体験<br>受付中です</p>
+    <button type="button" class="fc-close" aria-label="このご案内を閉じる">×</button>
+    <p class="fc-text">ご相談だけでも大丈夫です。お電話か公式LINEでお気軽にどうぞ。</p>
+    <div class="fc-actions">
+      <a class="fc-btn fc-trial" href="#contact">見学・体験を申し込む</a>
+      <a class="fc-btn fc-line" href="https://lin.ee/RaQWgzv" target="_blank" rel="noopener">LINEで相談する</a>
+    </div>
+  </div>
+</aside>
 
 <footer class="site-footer">
   <div class="wrap">
@@ -884,56 +968,81 @@ section{padding:84px 0}
         事業内容：通所介護／介護予防通所介護<br>
         80SKIPグループ</p>
       </div>
-      <div>
-        <h3>各種情報</h3>
-        <ul class="footer-links">
-          <li><a href="juyojiko.html">重要事項・運営規程</a></li>
-          <li><a href="juyojiko.html#suishin">運営推進会議 議事録</a></li>
-          <li><a href="juyojiko.html#shogu">処遇改善（職場環境等要件）</a></li>
-          <li><a href="privacy.html">プライバシーポリシー</a></li>
-          <li><a href="https://lin.ee/RaQWgzv" target="_blank" rel="noopener">公式LINE</a></li>
-          <li><a href="https://www.instagram.com/eastone.smile/" target="_blank" rel="noopener">公式Instagram</a></li>
-          <li><a href="https://wagasyade-saiyo.jp/80skip-project/recruitment/index.php?kw=ZnJlZVdvcmQ9JnByZWY9MCZjYXRlZ29yeT0xNDc4NV8xNDc4N18xOTQ1MiZrZW5zYWt1PQ" target="_blank" rel="noopener">採用情報</a></li>
-        </ul>
-      </div>
+      <nav class="footer-sitemap" id="sitemap" aria-label="サイトマップ">
+        <div>
+          <h3>East-oneについて</h3>
+          <ul class="footer-links">
+            <li><a href="#concept">East-oneとは</a></li>
+            <li><a href="#why">半日型である理由</a></li>
+            <li><a href="#program">5つのプログラム</a></li>
+            <li><a href="#flow">1日の流れ</a></li>
+            <li><a href="#voices">利用者様の声</a></li>
+            <li><a href="#group">80SKIPグループ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>ご利用案内</h3>
+          <ul class="footer-links">
+            <li><a href="#trial">見学・無料体験の流れ</a></li>
+            <li><a href="#stores">施設一覧</a></li>
+            <li><a href="#fee">費用について</a></li>
+            <li><a href="#contact">お問い合わせ</a></li>
+            <li><a href="#caremanager">ケアマネージャーの方へ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>各種情報</h3>
+          <ul class="footer-links">
+            <li><a href="juyojiko.html">重要事項・運営規程</a></li>
+            <li><a href="juyojiko.html#suishin">運営推進会議 議事録</a></li>
+            <li><a href="juyojiko.html#shogu">処遇改善（職場環境等要件）</a></li>
+            <li><a href="privacy.html">プライバシーポリシー</a></li>
+            <li><a href="https://wagasyade-saiyo.jp/80skip-project/recruitment/index.php?kw=ZnJlZVdvcmQ9JnByZWY9MCZjYXRlZ29yeT0xNDc4NV8xNDc4N18xOTQ1MiZrZW5zYWt1PQ" target="_blank" rel="noopener">採用情報</a></li>
+            <li><a href="https://lin.ee/RaQWgzv" target="_blank" rel="noopener">公式LINE</a></li>
+            <li><a href="https://www.instagram.com/eastone.smile/" target="_blank" rel="noopener">公式Instagram</a></li>
+          </ul>
+        </div>
+      </nav>
     </div>
     <p class="copyright">&copy; Breams Co., Ltd.</p>
   </div>
 </footer>
 
 <script>
+/* 追従バナー：トップの写真を過ぎたら出し、お問い合わせ欄・グループ・フッターが見えている間は隠す。
+   PC の「×」で閉じたら、ブラウザを閉じるまで出さない */
 (function(){
-  var box = document.getElementById('heroSlider');
-  if(!box) return;
-  var imgs = box.querySelectorAll('img');
-  var dots = document.getElementById('heroDots');
-  var i = 0, timer = null;
-  var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fc = document.getElementById('float-cta');
+  var hero = document.getElementById('top');
+  var stops = ['contact', 'group'].map(function(id){ return document.getElementById(id); })
+    .concat([document.querySelector('.site-footer')]).filter(Boolean);
+  if(!fc || !hero) return;
+  fc.hidden = false;
+  var closed = false, heroIn = true, stopIn = [], announced = false;
+  try{ closed = sessionStorage.getItem('eastoneFcClosed') === '1'; }catch(e){}
 
-  imgs.forEach(function(_, n){
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('aria-label', (n+1) + '枚目の写真を表示');
-    b.setAttribute('aria-current', n === 0 ? 'true' : 'false');
-    b.addEventListener('click', function(){ show(n); restart(); });
-    dots.appendChild(b);
+  function update(){
+    var show = !closed && !heroIn && stopIn.length === 0;
+    fc.classList.toggle('is-shown', show);
+    if(show && !announced){ announced = true; document.dispatchEvent(new CustomEvent('eastone:float-cta-shown')); }
+  }
+  fc.querySelector('.fc-close').addEventListener('click', function(){
+    closed = true;
+    try{ sessionStorage.setItem('eastoneFcClosed', '1'); }catch(e){}
+    update();
   });
-
-  function show(n){
-    i = (n + imgs.length) % imgs.length;
-    imgs.forEach(function(el, k){ el.classList.toggle('is-active', k === i); });
-    dots.querySelectorAll('button').forEach(function(b, k){
-      b.setAttribute('aria-current', k === i ? 'true' : 'false');
+  if(!('IntersectionObserver' in window)){ heroIn = false; update(); return; }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.target === hero){ heroIn = en.isIntersecting; return; }
+      var k = stopIn.indexOf(en.target);
+      if(en.isIntersecting && k === -1) stopIn.push(en.target);
+      if(!en.isIntersecting && k !== -1) stopIn.splice(k, 1);
     });
-  }
-  function restart(){
-    if(still) return;
-    clearInterval(timer);
-    timer = setInterval(function(){ show(i+1); }, 5000);
-  }
-  box.addEventListener('mouseenter', function(){ clearInterval(timer); });
-  box.addEventListener('mouseleave', restart);
-  restart();
+    update();
+  });
+  io.observe(hero);
+  stops.forEach(function(el){ io.observe(el); });
 })();
 </script>
 

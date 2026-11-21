@@ -18,6 +18,9 @@ var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
      nav_click        ページ内のメニュー・ボタン、重要事項などのページへのリンク
      outbound_click   運営会社・採用情報など、ほかのサイトへのリンク
      section_view     各セクションを1秒以上表示した（section=セクション名）
+     float_cta_view   追従バナー（見学・無料体験のご案内）が初めて表示された（1ページ表示につき1回）
+     float_cta_close  追従バナーを「×」で閉じた
+       ※追従バナー内のボタンは trial_click / line_click（link_location=追従バナー）として送る
    共通のパラメータ
      link_text        押されたボタン・リンクの文字
      link_location    押された場所（ヘッダー／ヒーロー／施設一覧 など）
@@ -63,12 +66,13 @@ var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
     why:'半日型の理由', program:'プログラム', flow:'1日の流れ', voices:'利用者様の声',
     trial:'見学・体験の流れ', stores:'施設一覧', caremanager:'ケアマネージャーの方へ',
     fee:'費用', contact:'お問い合わせ', footer:'フッター', nav:'メニュー',
+    group:'80SKIPグループ', sitemap:'フッター（サイトマップ）', 'float-cta':'追従バナー',
     common:'重要事項：共通', honten:'重要事項：本店', mishima:'重要事項：三島店', nagaizumi:'重要事項：長泉店'
   };
   var STORE_BY_TEL = {'0559417807':'本店', '0559886006':'三島店', '0559555185':'長泉店'};
 
   function placeOf(el){
-    var box = el.closest('section[id], header, footer, nav');
+    var box = el.closest('section[id], header, footer, nav, aside[id]');
     if(!box) return 'その他';
     var key = box.id || box.tagName.toLowerCase();
     return PLACE[key] || key;
@@ -103,6 +107,12 @@ var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
     }
   });
 
+  /* 追従バナーの表示と「×」（クリック率＝バナー内のクリック数 ÷ float_cta_view） */
+  document.addEventListener('eastone:float-cta-shown', function(){ send('float_cta_view', {link_location: PLACE['float-cta']}); });
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('.fc-close')) send('float_cta_close', {link_location: PLACE['float-cta']});
+  });
+
   /* どこまで読まれたか（各セクションが1秒以上画面に入っていたら1回だけ送信。
      ボタンで #contact へ移動するときに通り過ぎただけのセクションは数えない） */
   if(!document.getElementById('top') || !('IntersectionObserver' in window)) return;  // トップページだけ
@@ -117,7 +127,7 @@ var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
       }, 1000);
     });
   }, {threshold: 0.25});
-  ['concept','why','program','flow','voices','trial','stores','caremanager','fee','contact'].forEach(function(id){
+  ['concept','why','program','flow','voices','trial','stores','caremanager','fee','contact','group'].forEach(function(id){
     var el = document.getElementById(id);
     if(el && el.tagName === 'SECTION') io.observe(el);
   });
