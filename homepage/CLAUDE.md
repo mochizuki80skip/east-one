@@ -20,7 +20,9 @@
 - `public_html/404.html` / `sub.css` / `.htaccess` / `robots.txt` / `sitemap.xml` / アイコン類
 - `public_html/images/` … 画像一式
 - `build_preview.py` … 画像を埋め込んだ確認用ファイルを `preview/` に作る
-- `tools/package.py` … 未記入箇所を確認し、`dist/` にアップロード用一式（zip 付き）を作る
+- `tools/package.py` … 未記入箇所を確認し、`dist/` にアップロード用一式を作る。ファイル名に版を付ける（`East-oneHP_アップロード用_20261124a.zip` / `East-oneHP_確認用_20261124a.html`。日付＋その日の a, b, c…）
+
+**修正してユーザーに送るときは、必ず `python3 build_preview.py` → `python3 tools/package.py` の順に実行し、版付きの2ファイルを送る。`tools/last_version.txt` もコミットする**（ユーザーの希望：どれが最新か分かるように）。
 - `tools/make_icons.py` … ファビコン・OGP画像を作り直す
 
 **HTML を編集したら必ず `python3 build_preview.py` を実行して見た目を確認する。**

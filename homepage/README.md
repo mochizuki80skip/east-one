@@ -37,7 +37,12 @@ cd homepage
 python3 tools/package.py
 ```
 
-`dist/public_html/` と、同じ中身の `dist/eastone-homepage.zip` ができます。
+`dist/public_html/` と、同じ中身の zip ができます。ファイル名には版が付きます。
+
+- `dist/East-oneHP_アップロード用_20261124a.zip` … アップロードする一式
+- `dist/East-oneHP_確認用_20261124a.html` … 画像を埋め込んだ確認用（先に `python3 build_preview.py` を実行しておく）
+
+版は「日付（日本時間）＋その日の何回目か（a, b, c…）」で、数字と記号が大きいほど新しい版です。最後に作った版は `tools/last_version.txt` に記録され、Git に入れておくと別の作業環境でも続きの記号になります。
 未記入の箇所や計測IDの入れ忘れがあると「注意」が表示されます。
 （`public_html/` をそのままアップロードしても動きます。`package.py` は確認と zip づくりのためのものです）
 
@@ -65,7 +70,7 @@ python3 tools/package.py
 **B. サーバーパネルの「ファイル管理」を使う**
 
 1. 「ファイル管理」で `/hachimaru-80skip.com/public_html/east-one/` を開きます。
-2. `dist/eastone-homepage.zip` をアップロードし、ファイルを選んで「展開」します（展開機能が見当たらない場合は A の方法で）。
+2. `dist/East-oneHP_アップロード用_（版）.zip` をアップロードし、ファイルを選んで「展開」します（展開機能が見当たらない場合は A の方法で）。
 3. 展開後、zip ファイルは削除します。
 
 ## 4. 公開後の確認
