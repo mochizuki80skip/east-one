@@ -30,7 +30,7 @@ def main() -> None:
     shutil.rmtree(OUT, ignore_errors=True)
     shutil.copytree(SRC, OUT)
 
-    todos = []
+    todos, held = [], []
     for dirpath, _, files in os.walk(OUT):
         for name in files:
             path = os.path.join(dirpath, name)
@@ -41,7 +41,11 @@ def main() -> None:
             if "__SITE_URL__" in text:
                 sys.exit("エラー: %s に __SITE_URL__ が残っています。%s に置き換えてください" % (name, SITE))
             n = len(re.findall(r"【要(?:記入|確認)】", text))
-            if n:
+            if n and name.endswith(".html"):
+                # 未記入のページは公開しない（黄色の【要記入】がそのまま見えてしまうため）
+                os.remove(path)
+                held.append((os.path.relpath(path, OUT), n))
+            elif n:
                 todos.append((os.path.relpath(path, OUT), n))
 
     if os.path.exists(ZIP):
@@ -62,6 +66,8 @@ def main() -> None:
         print("  注意: Microsoft Clarity のIDが未設定です（analytics.js の EASTONE_CLARITY_ID）")
     for path, n in todos:
         print("  注意: %s に未記入の箇所が %d か所あります（【要記入】【要確認】）" % (path, n))
+    for path, n in held:
+        print("  保留: %s は未記入が %d か所あるため一式に入れていません（埋めてから作り直すと入ります）" % (path, n))
 
 
 if __name__ == "__main__":

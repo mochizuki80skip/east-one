@@ -89,6 +89,7 @@ var EASTONE_CLARITY_ID = 'abcd123456'; // 2. で控えたProject ID
 | `nav_click` | メニュー・2つの入口・重要事項ページなど、サイト内のリンク | `link_text`、`link_location` |
 | `outbound_click` | 運営会社・採用情報など、他のサイトへのリンク | `link_text`、`link_url` |
 | `section_view` | トップページの各セクションを1秒以上表示 | `section`（半日型の理由／施設一覧 など） |
+| `faq_open` | よくある質問を開いた | `question`（質問文） |
 | `float_cta_view` | 追従バナー（見学・無料体験のご案内）が表示された（1ページにつき1回） | `link_location`＝追従バナー |
 | `float_cta_close` | 追従バナーを「×」で閉じた（PCのみ） | `link_location`＝追従バナー |
 

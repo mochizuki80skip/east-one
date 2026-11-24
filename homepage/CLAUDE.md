@@ -75,7 +75,9 @@ PC `clamp(28px,3.3vw,40px)` / モバイル（880px以下）`clamp(19px,6vw,30px)
 
 ヘッダー → ヒーロー（ピンク）→ 2つの入口（ピンク）→ `#concept`（白）→ `#why`（mist）
 → `#program`（白）→ `#flow`（mist）→ `#voices`（白）→ `#trial`（mist）→ `#stores`（白）
-→ `#caremanager`（ピンク）→ `#fee`（白）→ `#contact`（mist）→ `#group`（白・80SKIPグループ）→ フッター（ピンク・サイトマップ付き）
+→ `#caremanager`（ピンク）→ `#fee`（mist）→ `#faq`（白・よくある質問）→ `#contact`（mist）→ `#group`（白・80SKIPグループ）→ フッター（ピンク・サイトマップ付き）
+
+よくある質問は `<details>` の開閉式。質問を変えたら head の FAQPage 構造化データも同じ内容に直す（Google のルールで本文と一致が必要）。答えには確定している事業所データだけを使うこと。
 
 追従バナー（`#float-cta`）はトップの写真を過ぎると表示し、`#contact` から下では隠す。PC は右下のカード（×で閉じられる）、スマホは画面下のボタン2つ。
 
@@ -95,7 +97,9 @@ PC `clamp(28px,3.3vw,40px)` / モバイル（880px以下）`clamp(19px,6vw,30px)
 
 ## 次にやること（優先順）
 
-1. `juyojiko.html` の【要記入】【要確認】を埋める（法定の掲載義務。公開に必須）
+1. `juyojiko.html` の【要記入】【要確認】を埋める（法定の掲載義務）。資料（重要事項説明書・運営規程・処遇改善計画書・議事録）の回収待ち。
+   それまではフッターのリンクをコメントアウトし、sitemap.xml から外し、noindex を付け、`tools/package.py` も一式に入れない設定。
+   仕上がったら：フッターのコメントを戻す／sitemap.xml に戻す／noindex の行を消す
 2. サブドメイン追加・SSL有効化 → アップロード（README.md）、旧サイトからの301リダイレクト
 3. GA4 は設定済み（G-NP91P6K4F6）。GA4 側の初期設定（キーイベント・カスタムディメンション・保持期間）と Clarity の ID 設定が残り（`docs/analytics.md`）
 4. Google Search Console 登録・サイトマップ送信

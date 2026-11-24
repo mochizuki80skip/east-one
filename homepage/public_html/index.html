@@ -66,6 +66,87 @@
   ]
 }
 </script>
+<!-- よくある質問の構造化データ（本文の #faq と同じ内容にすること） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "どんな人が利用できますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "要支援1・2、要介護1〜5の認定を受けた方と、事業対象者の方がご利用いただけます。まだ認定を受けていない方は、お住まいの市町の窓口や地域包括支援センターにご相談ください。どこに相談すればよいか分からない場合も、お気軽にお電話ください。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "入浴や食事はありますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "ありません。East-oneは午前・午後それぞれ約3時間の半日型で、お風呂や食事に使う時間を機能訓練にあてています。食事の提供がないため、食費もかかりません。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "1回の利用時間はどのくらいですか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "午前の部（8:30〜12:15）と午後の部（13:15〜16:30）があり、どちらかをお選びいただけます。送迎の時刻はお住まいの地域によって前後します。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "送迎はありますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "あります。送迎範囲は、本店が裾野市内、三島店が三島市（一部を除く）と長泉町全域、長泉店が長泉町内です。通常の実施地域外の方は、ご家族による送迎、または1kmにつき30円の実費で対応いたします。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "費用はどのくらいかかりますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "介護保険の自己負担分（1〜3割）と、おむつ代などの実費です。金額は要介護度・負担割合・利用時間によって変わります。食費とキャンセル料はかかりません。詳しくは担当のケアマネージャー様か、各店舗までお問い合わせください。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "体力に自信がなくても大丈夫ですか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "大丈夫です。機能訓練指導員がお一人おひとりの状態に合わせて訓練の内容を決めますので、無理なく始められます。事業対象者や要支援の方も多く通われています。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "見学や体験は無料ですか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "無料です。見学だけでも歓迎しています。ご家族だけでの見学もお受けしていますし、その場で利用を決めていただく必要もありません。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "見学・体験はどうやって申し込めばいいですか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "ご希望の店舗へのお電話か、公式LINEからお申し込みください。受付時間は8:30〜17:30（日曜定休）です。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "今のケアマネージャーに相談したほうがいいですか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "担当のケアマネージャー様がいらっしゃる場合は、ケアマネージャー様にご相談いただくと、ケアプランへの位置づけまでスムーズに進みます。もちろん、East-oneへ直接ご連絡いただいても構いません。"
+      }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
@@ -295,7 +376,23 @@ section{padding:84px 0}
 /* fee */
 .fee-table{width:100%;border-collapse:collapse;font-size:15.5px}
 .fee-table th,.fee-table td{border:1px solid var(--line);padding:14px 16px;text-align:left;vertical-align:top}
-.fee-table th{background:var(--mist);font-weight:700;width:38%}
+.fee-table td{background:#fff}
+.fee-table th{background:#F6E6EF;font-weight:700;width:38%}
+/* faq */
+.faq-list{max-width:880px}
+.faq-item{border:1px solid var(--line);border-radius:8px;background:#fff;margin:0 0 12px}
+.faq-item summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;gap:14px;padding:18px 52px 18px 20px;position:relative;font-family:var(--display);font-weight:700;font-size:17.5px;line-height:1.6}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"";position:absolute;right:22px;top:26px;width:10px;height:10px;border-right:2.5px solid var(--pink-deep);border-bottom:2.5px solid var(--pink-deep);transform:rotate(45deg);transition:transform .2s}
+.faq-item[open] summary::after{transform:rotate(-135deg);top:31px}
+.faq-item summary:hover{color:var(--pink-deep)}
+.faq-q,.faq-a-mark{flex:none;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:900;font-size:15px;line-height:1}
+.faq-q{background:var(--pink-deep);color:#fff}
+.faq-a{display:flex;gap:14px;padding:0 20px 20px}
+.faq-a-mark{background:var(--mist);color:var(--pink-deep);border:1.5px solid var(--pink)}
+.faq-a p{margin:0;font-size:16.5px;line-height:1.95;color:#463E4D}
+@media(max-width:560px){.faq-item summary{font-size:16.5px;padding:16px 46px 16px 14px;gap:10px}.faq-a{padding:0 14px 18px;gap:10px}}
+@media(prefers-reduced-motion:reduce){.faq-item summary::after{transition:none}}
 .fee-note{font-size:14px;color:var(--sub);line-height:1.9;margin-top:16px}
 
 /* contact */
@@ -876,7 +973,7 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
     </div>
   </section>
 
-  <section id="fee">
+  <section id="fee" class="band">
     <div class="wrap">
       <div class="sec-head">
         <p class="sec-lead">費用について</p>
@@ -904,6 +1001,27 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
         </tbody>
       </table>
       <p class="fee-note">食事の提供は行っていないため、食費はかかりません。<!-- TODO: 他2店舗で金額が異なる場合は店舗別に分岐 --></p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="sec-lead">よくある質問</p>
+        <h2>ご利用前によくいただく質問</h2>
+        <p>ここにないことも、お電話・公式LINEでお気軽にお尋ねください。</p>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>どんな人が利用できますか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>要支援1・2、要介護1〜5の認定を受けた方と、事業対象者の方がご利用いただけます。まだ認定を受けていない方は、お住まいの市町の窓口や地域包括支援センターにご相談ください。どこに相談すればよいか分からない場合も、お気軽にお電話ください。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>入浴や食事はありますか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>ありません。East-oneは午前・午後それぞれ約3時間の半日型で、お風呂や食事に使う時間を機能訓練にあてています。食事の提供がないため、食費もかかりません。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>1回の利用時間はどのくらいですか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>午前の部（8:30〜12:15）と午後の部（13:15〜16:30）があり、どちらかをお選びいただけます。送迎の時刻はお住まいの地域によって前後します。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>送迎はありますか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>あります。送迎範囲は、本店が裾野市内、三島店が三島市（一部を除く）と長泉町全域、長泉店が長泉町内です。通常の実施地域外の方は、ご家族による送迎、または1kmにつき30円の実費で対応いたします。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>費用はどのくらいかかりますか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>介護保険の自己負担分（1〜3割）と、おむつ代などの実費です。金額は要介護度・負担割合・利用時間によって変わります。食費とキャンセル料はかかりません。詳しくは担当のケアマネージャー様か、各店舗までお問い合わせください。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>体力に自信がなくても大丈夫ですか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>大丈夫です。機能訓練指導員がお一人おひとりの状態に合わせて訓練の内容を決めますので、無理なく始められます。事業対象者や要支援の方も多く通われています。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>見学や体験は無料ですか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>無料です。見学だけでも歓迎しています。ご家族だけでの見学もお受けしていますし、その場で利用を決めていただく必要もありません。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>見学・体験はどうやって申し込めばいいですか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>ご希望の店舗へのお電話か、公式LINEからお申し込みください。受付時間は8:30〜17:30（日曜定休）です。</p></div></details>
+        <details class="faq-item"><summary><span class="faq-q" aria-hidden="true">Q</span>今のケアマネージャーに相談したほうがいいですか？</summary><div class="faq-a"><span class="faq-a-mark" aria-hidden="true">A</span><p>担当のケアマネージャー様がいらっしゃる場合は、ケアマネージャー様にご相談いただくと、ケアプランへの位置づけまでスムーズに進みます。もちろん、East-oneへ直接ご連絡いただいても構いません。</p></div></details>
+      </div>
     </div>
   </section>
 
@@ -999,6 +1117,7 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
             <li><a href="#trial">見学・無料体験の流れ</a></li>
             <li><a href="#stores">施設一覧</a></li>
             <li><a href="#fee">費用について</a></li>
+            <li><a href="#faq">よくある質問</a></li>
             <li><a href="#contact">お問い合わせ</a></li>
             <li><a href="#caremanager">ケアマネージャーの方へ</a></li>
           </ul>
@@ -1006,9 +1125,11 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
         <div>
           <h3>各種情報</h3>
           <ul class="footer-links">
+            <!-- 重要事項・運営規程／運営推進会議 議事録／処遇改善は、資料を回収して juyojiko.html を仕上げてから戻す。
             <li><a href="juyojiko.html">重要事項・運営規程</a></li>
             <li><a href="juyojiko.html#suishin">運営推進会議 議事録</a></li>
             <li><a href="juyojiko.html#shogu">処遇改善（職場環境等要件）</a></li>
+            -->
             <li><a href="privacy.html">プライバシーポリシー</a></li>
             <li><a href="https://wagasyade-saiyo.jp/80skip-project/recruitment/index.php?kw=ZnJlZVdvcmQ9JnByZWY9MCZjYXRlZ29yeT0xNDc4NV8xNDc4N18xOTQ1MiZrZW5zYWt1PQ" target="_blank" rel="noopener">採用情報</a></li>
             <li><a href="https://lin.ee/RaQWgzv" target="_blank" rel="noopener">公式LINE</a></li>
