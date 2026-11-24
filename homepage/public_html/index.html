@@ -258,8 +258,16 @@ section{padding:84px 0}
 .concept{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:8px}
 .why{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:8px}
 .why article{background:#fff;border:1px solid var(--line);border-radius:8px;padding:28px 28px 30px}
-.why h3{font-family:var(--display);font-weight:900;font-size:19.5px;line-height:1.55;margin:0 0 12px;color:var(--pink-deep)}
+.why h4{display:flex;align-items:flex-start;gap:12px;font-family:var(--display);font-weight:900;font-size:19.5px;line-height:1.55;margin:0 0 14px;color:var(--pink-deep);word-break:auto-phrase}
+.why-no{flex:none;width:34px;height:34px;border-radius:50%;background:var(--pink);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;margin-top:1px}
 .why p{margin:0;font-size:16px;line-height:2;color:#463E4D}
+.why p+p{margin-top:10px}
+.why-quote{background:var(--mist);border-radius:6px;padding:10px 14px;font-family:var(--display);font-weight:700;color:var(--ink)!important}
+#why .sec-head{max-width:44em}
+.why-catch{font-family:var(--display);font-weight:900;font-size:clamp(20px,2.2vw,24px)!important;line-height:1.6!important;color:var(--pink-deep)!important;margin:0 0 20px!important}
+.why-key{font-family:var(--display);font-weight:700;font-size:18.5px!important;line-height:1.8!important;color:var(--ink)!important;border-left:4px solid var(--pink);padding-left:14px;margin:24px 0 14px!important}
+.why-subhead{display:flex;align-items:center;gap:16px;font-family:var(--display);font-weight:900;font-size:clamp(21px,2.4vw,26px);margin:52px 0 22px}
+.why-subhead::after{content:"";flex:1;height:2px;background:var(--line)}
 @media(max-width:780px){.why{grid-template-columns:1fr;gap:18px}}
 .concept div{border-top:3px solid var(--pink);padding-top:18px}
 .concept h3{font-family:var(--display);font-weight:700;font-size:19px;margin:0 0 10px;color:var(--pink-deep)}
@@ -588,25 +596,40 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
     <div class="wrap">
       <div class="sec-head">
         <p class="sec-lead">半日型である理由</p>
-        <h2>お風呂も食事もありません。<br>その時間を、すべて機能訓練に。</h2>
-        <p>デイサービスというと、入浴と食事で1日を過ごす場所を思い浮かべる方が多いかもしれません。East-oneはそうではありません。午前・午後それぞれ約3時間、通っている時間をまるごと体を動かすことに使う施設です。</p>
+        <h2>なぜ、私たちは半日型なのか。</h2>
+        <p class="why-catch">いつまでも、自分らしく暮らしてほしいから。</p>
+        <p>私たちが大切にしているのは、デイサービスで過ごす時間だけではありません。<br>本当に大切なのは、ご自宅や住み慣れた地域で、自分らしい生活を続けていくことです。</p>
+        <p>そのためには、歩く力、立ち上がる力、身体を動かす力など、日常生活を支える身体機能を維持向上させていくことが大切です。</p>
+        <p>だからこそ私たちは入浴や食事の提供ではなく、機能訓練を中心とした半日型のデイサービスを選びました。</p>
+        <p class="why-key">限られた時間を、これからの生活を支えるための時間に。</p>
+        <p>私たちは、利用者様一人ひとりの「これからも自分らしく暮らしたい」という想いを応援します。</p>
       </div>
+      <h3 class="why-subhead">半日型である4つの理由</h3>
       <div class="why">
         <article>
-          <h3>待ち時間がないぶん、<br>すぐに機能訓練が始まります</h3>
-          <p>入浴の順番を待つ時間も、食事の支度を待つ時間もありません。到着して健康チェックを済ませたら、すぐに体操が始まります。機能訓練に当てる時間は1時間40分。通っている時間がそのまま訓練の時間になります。</p>
+          <h4><span class="why-no" aria-hidden="true">1</span>生活機能を維持・向上させることに時間を使いたい。</h4>
+          <p>私たちが提供したいのは、単に身体を動かす時間ではありません。</p>
+          <p class="why-quote">歩く、立つ、階段を上る、買い物に行く、外出する。</p>
+          <p>そうした日常生活に必要な能力を維持・向上させるために、機能訓練を中心としたサービスを提供しています。</p>
         </article>
         <article>
-          <h3>1日を拘束しません</h3>
-          <p>午前だけ、午後だけ。お迎えからお送りまで半日で完了します。生活のリズムを大きく変えずに通えますし、ご家族にとっても送り出してから迎えるまでの予定が立てやすくなります。</p>
+          <h4><span class="why-no" aria-hidden="true">2</span>施設で過ごす時間より、自宅や地域で過ごす時間を大切にしたい。</h4>
+          <p>デイサービスに長時間いることが目的ではありません。</p>
+          <p>本当に大切なのは、デイサービスを利用していない時間を、いかに自分らしく過ごせるかです。</p>
+          <p>だからこそ、半日という時間設定に意味があります。</p>
         </article>
         <article>
-          <h3>「まだそこまでじゃない」<br>という方こそ通えます</h3>
-          <p>お風呂に入れてもらう場所ではなく、体を鍛えに行く場所です。介護される側になった気がして気が進まない、という方にも始めていただきやすい形にしています。実際、事業対象者や要支援の方も多く通われています。</p>
+          <h4><span class="why-no" aria-hidden="true">3</span>介護が必要になってからではなく、今できることを守るために通ってほしい。</h4>
+          <p class="why-quote">「まだデイサービスを利用するほどではない。」<br>「今は自分で歩けるし、生活にも困っていない。」</p>
+          <p>そう思っている方に、<br>ぜひ利用してほしい。</p>
+          <p>今できていることを、これからも続けるために身体づくりを始める。</p>
+          <p>弊社の半日型には、そうした介護予防の意味もあります。</p>
         </article>
         <article>
-          <h3>食費がかからず、<br>単位数も抑えられます</h3>
-          <p>食事の提供がないため、食費は発生しません。また半日型は1日型に比べて介護保険の単位数を抑えられるため、区分支給限度額のなかで訪問看護や福祉用具など他のサービスと組み合わせやすくなります。</p>
+          <h4><span class="why-no" aria-hidden="true">4</span>利用者様にとって、無理なく継続できるサービスでありたい。</h4>
+          <p>長時間の利用を必要とせず、<br>食費の負担もありません。</p>
+          <p>ご自身の生活リズムを大切にしながら、必要な機能訓練を継続できます。</p>
+          <p>サービスは、一度利用して終わりではありません。<br>継続することに価値があります。</p>
         </article>
       </div>
     </div>
