@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /kanri/
 
 Sitemap: https://east-one.hachimaru-80skip.com/sitemap.xml

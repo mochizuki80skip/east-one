@@ -54,7 +54,11 @@ def main() -> None:
     zip_path = os.path.join(DIST, "%s_アップロード用_%s.zip" % (TITLE, version))
     preview_path = os.path.join(DIST, "%s_確認用_%s.html" % (TITLE, version))
     shutil.rmtree(OUT, ignore_errors=True)
-    shutil.copytree(SRC, OUT)
+    # サーバー上にだけある管理画面の設定・登録データは一式に入れない（上書きで消さないため）
+    shutil.copytree(SRC, OUT, ignore=lambda d, names: [
+        n for n in names
+        if (os.path.basename(d) == "kanri" and n == "config.php")
+        or (os.path.basename(d) in ("data", "files") and n != ".htaccess")])
 
     todos, held = [], []
     for dirpath, _, files in os.walk(OUT):

@@ -1,6 +1,6 @@
 # East-one ホームページ（サブドメイン east-one.hachimaru-80skip.com の公開フォルダ直下に置く .htaccess）
 Options -Indexes
-DirectoryIndex index.html
+DirectoryIndex index.html index.php
 ErrorDocument 404 /404.html
 AddDefaultCharset UTF-8
 

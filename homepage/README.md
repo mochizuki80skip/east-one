@@ -16,6 +16,9 @@ homepage/
     404.html              ページが見つからないときの表示
     sub.css               下層ページ共通のスタイル
     analytics.js          アクセス解析（GA4・Clarity）。ID はこのファイルの先頭に入れる
+    documents.html, docs.js   公開資料（議事録など）。管理画面で登録した資料を並べる
+    kanri/                資料の管理画面（PHP）。使い方は docs/kanri.md
+    files/                管理画面で登録したファイルの置き場所（中身はサーバーにだけある）
     .htaccess             https への転送・圧縮・キャッシュなどのサーバー設定
     robots.txt / sitemap.xml   検索エンジン向け
     favicon.ico / icon-192.png / apple-touch-icon.png   ブラウザ・スマホのアイコン

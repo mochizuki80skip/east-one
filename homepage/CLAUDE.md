@@ -16,6 +16,8 @@
 - `public_html/index.html` … トップページ。CSSとJSを内包
 - `public_html/juyojiko.html` … 重要事項・運営規程／処遇改善／運営推進会議（法定掲載）
 - `public_html/privacy.html` … プライバシーポリシー
+- `public_html/documents.html` + `docs.js` … 公開資料（運営推進会議 議事録など）。`files/documents.json` を読んで並べる
+- `public_html/kanri/index.php` … 資料の管理画面（PHP・パスワード認証）。使い方は `docs/kanri.md`。登録データは `kanri/data/`・`files/` にあり、サーバーにだけ置く（Git にも zip にも入れない）
 - `public_html/analytics.js` … アクセス解析（GA4・Clarity）。全ページ共通。イベント一覧と設定手順は `docs/analytics.md`
 - `public_html/404.html` / `sub.css` / `.htaccess` / `robots.txt` / `sitemap.xml` / アイコン類
 - `public_html/images/` … 画像一式
@@ -104,7 +106,7 @@ PC `clamp(28px,3.3vw,40px)` / モバイル（880px以下）`clamp(19px,6vw,30px)
    それまではフッターのリンクをコメントアウトし、sitemap.xml から外し、noindex を付け、`tools/package.py` も一式に入れない設定。
    仕上がったら：フッターのコメントを戻す／sitemap.xml に戻す／noindex の行を消す
 2. サブドメイン追加・SSL有効化 → アップロード（README.md）、旧サイトからの301リダイレクト
-3. GA4 は設定済み（G-NP91P6K4F6）。GA4 側の初期設定（キーイベント・カスタムディメンション・保持期間）と Clarity の ID 設定が残り（`docs/analytics.md`）
+3. GA4（G-NP91P6K4F6）・Clarity（zik2emkcm9）とも設定済み。GA4 側の初期設定（キーイベント・カスタムディメンション・保持期間）が残り（`docs/analytics.md`）
 4. Google Search Console 登録・サイトマップ送信
 
 詳細は `HANDOFF.md` の「残タスク」を参照。

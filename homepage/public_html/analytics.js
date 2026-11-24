@@ -7,7 +7,7 @@
      Clarity … プロジェクトID（Clarity の Settings → Overview で確認。英数字10桁前後）
    ===================================================================== */
 var EASTONE_GA4_ID = 'G-NP91P6K4F6';  // GA4 測定ID（プロパティ「East-one ホームページ」）
-var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
+var EASTONE_CLARITY_ID = 'zik2emkcm9';  // Clarity プロジェクトID（East-one ホームページ）
 
 /* ---------------------------------------------------------------------
    送るイベント（GA4 の「イベント」レポートにこの名前で出る）
@@ -68,6 +68,7 @@ var EASTONE_CLARITY_ID = '';  // 例: 'abcd123456'
     trial:'見学・体験の流れ', stores:'施設一覧', caremanager:'ケアマネージャーの方へ',
     fee:'費用', contact:'お問い合わせ', footer:'フッター', nav:'メニュー',
     faq:'よくある質問', group:'80SKIPグループ', sitemap:'フッター（サイトマップ）', 'float-cta':'追従バナー',
+    suishin:'公開資料：運営推進会議', juyo:'公開資料：重要事項', shogu:'公開資料：処遇改善',
     common:'重要事項：共通', honten:'重要事項：本店', mishima:'重要事項：三島店', nagaizumi:'重要事項：長泉店'
   };
   var STORE_BY_TEL = {'0559417807':'本店', '0559886006':'三島店', '0559555185':'長泉店'};

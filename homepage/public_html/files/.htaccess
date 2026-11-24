@@ -1,0 +1,24 @@
+# 管理画面から登録した資料の置き場所
+# 万一プログラムが置かれても実行させない。資料の種類以外は読ませない
+Options -Indexes -ExecCGI
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<FilesMatch ".">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.(pdf|xlsx|xls|docx|doc|json)$">
+  Require all granted
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  # Excel・Word はブラウザで開かずダウンロードにする
+  <FilesMatch "\.(xlsx|xls|docx|doc)$">
+    Header set Content-Disposition "attachment"
+  </FilesMatch>
+  <FilesMatch "documents\.json$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

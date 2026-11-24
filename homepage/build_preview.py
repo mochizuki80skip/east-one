@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 PUB = os.path.join(ROOT, "public_html")
 IMG_DIR = os.path.join(PUB, "images")
 OUT = os.path.join(ROOT, "preview")
-PAGES = ["index.html", "juyojiko.html", "privacy.html", "404.html"]
+PAGES = ["index.html", "juyojiko.html", "documents.html", "privacy.html", "404.html"]
 
 # 埋め込み時だけ縮小・再圧縮する（本番画像には手を触れない）
 MAX_EDGE = 620
@@ -68,6 +68,12 @@ def build(page: str) -> None:
     with open(os.path.join(PUB, "analytics.js"), encoding="utf-8") as f:
         js = f.read()
     html = re.sub(r'<script src="/?analytics\.js" defer></script>', lambda m: "<script>\n%s</script>" % js, html)
+
+    # 公開資料の一覧スクリプトを埋め込む（確認用では資料は「準備中」と表示される）
+    if os.path.exists(os.path.join(PUB, "docs.js")):
+        with open(os.path.join(PUB, "docs.js"), encoding="utf-8") as f:
+            djs = f.read()
+        html = html.replace('<script src="docs.js" defer></script>', "<script>\n%s</script>" % djs)
 
     html = re.sub(r'src="/?images/([^"]+)"', lambda m: 'src="%s"' % data_uri(m.group(1)), html)
     if re.search(r'src="/?images/', html):

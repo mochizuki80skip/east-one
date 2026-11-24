@@ -1,3 +1,9 @@
 preview/
 dist/
 __pycache__/
+# 管理画面の設定・登録データ（サーバー上にだけ置く）
+public_html/kanri/config.php
+public_html/kanri/data/*
+!public_html/kanri/data/.htaccess
+public_html/files/*
+!public_html/files/.htaccess
