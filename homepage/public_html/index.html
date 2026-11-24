@@ -283,14 +283,10 @@ section{padding:84px 0}
 .concept-photo{margin:0 0 40px;border-radius:8px;overflow:hidden;aspect-ratio:16/9}
 .concept-photo img{width:100%;height:100%;object-fit:cover}
 .programs .kicker{font-family:var(--display);font-weight:700;font-size:14.5px;color:var(--pink-deep);margin:0 0 4px}
-.programs h3{font-family:var(--display);font-weight:900;font-size:19px;line-height:1.5;margin:0 0 12px}
+.programs h3{font-family:var(--display);font-weight:900;font-size:19px;line-height:1.5;margin:0 0 12px;word-break:auto-phrase}
 .programs p{margin:0;font-size:15.5px;line-height:2;color:#463E4D}
-.cycle{background:var(--mist)!important}
-.cycle .prog-text{padding:28px 24px}
-.cycle ol{margin:0;padding:0;list-style:none;font-size:15px;line-height:1.9;color:#463E4D}
-.cycle ol li{padding-left:22px;position:relative}
-.cycle ol li::before{content:"↓";position:absolute;left:4px;color:var(--pink);font-weight:700}
-.cycle ol li:first-child::before{content:"●";font-size:10px;top:1px}
+.cycle-figure{display:flex;align-items:center;justify-content:center;background:#F8EAF1}
+.cycle-svg{width:100%;height:100%;font-family:var(--display)}
 @media(max-width:880px){.programs{grid-template-columns:1fr 1fr}}
 @media(max-width:580px){.programs{grid-template-columns:1fr}}
 
@@ -684,16 +680,11 @@ a.gcard:hover,a.gcard:focus-visible{box-shadow:0 6px 16px rgba(46,37,48,.14);tra
         </div>
         </article>
         <article class="cycle">
+          <div class="prog-photo cycle-figure"><svg class="cycle-svg" viewBox="0 0 480 360" role="img" aria-labelledby="cycleTitle"><title id="cycleTitle">East-oneの笑顔になる機能訓練サイクル：整体、運動、個別訓練、口腔機能、社会参加イベントをくり返し、ADL・IADLの維持向上をめざします</title><circle cx="240" cy="180" r="132" fill="none" stroke="#8C8592" stroke-width="7"/><text x="240" y="176" text-anchor="middle" font-size="19" font-weight="900" fill="#A83A73"><tspan x="240" dy="0">ADL・IADLの</tspan><tspan x="240" dy="1.3em">維持向上</tspan></text><g><rect x="200.0" y="26.0" width="80" height="44" rx="9" fill="#A83A73"/><text x="240.0" y="55.0" text-anchor="middle" font-size="20" font-weight="700" fill="#fff"><tspan x="240.0" dy="0">整体</tspan></text></g><g><rect x="325.5" y="117.2" width="80" height="44" rx="9" fill="#A83A73"/><text x="365.5" y="146.2" text-anchor="middle" font-size="20" font-weight="700" fill="#fff"><tspan x="365.5" dy="0">運動</tspan></text></g><g><rect x="259.6" y="264.8" width="116" height="44" rx="9" fill="#A83A73"/><text x="317.6" y="293.8" text-anchor="middle" font-size="20" font-weight="700" fill="#fff"><tspan x="317.6" dy="0">個別訓練</tspan></text></g><g><rect x="104.4" y="264.8" width="116" height="44" rx="9" fill="#A83A73"/><text x="162.4" y="293.8" text-anchor="middle" font-size="20" font-weight="700" fill="#fff"><tspan x="162.4" dy="0">口腔機能</tspan></text></g><g><rect x="58.5" y="108.2" width="112" height="62" rx="9" fill="#A83A73"/><text x="114.5" y="135.2" text-anchor="middle" font-size="20" font-weight="700" fill="#fff"><tspan x="114.5" dy="0">社会参加</tspan><tspan x="114.5" dy="1.2em">イベント</tspan></text></g></svg></div>
           <div class="prog-text">
           <p class="kicker">East-oneの笑顔になる機能訓練サイクル</p>
-          <h3>ADL・IADLの維持向上へ</h3>
-          <ol>
-            <li>整体</li>
-            <li>運動</li>
-            <li>機能訓練</li>
-            <li>口腔機能</li>
-            <li>社会参加イベント</li>
-          </ol>
+          <h3>ご利用者様の心が“わくわく”するように！</h3>
+          <p>自立した生活ができるようサービスを提供します。</p>
           </div>
         </article>
       </div>
